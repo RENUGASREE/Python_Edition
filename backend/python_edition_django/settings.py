@@ -39,9 +39,7 @@ DEBUG = os.getenv("DJANGO_DEBUG", "true").strip().lower() in ("1", "true", "yes"
 
 APPEND_SLASH = True
 
-ALLOWED_HOSTS = [
-    host.strip() for host in os.environ.get("ALLOWED_HOSTS", ".onrender.com,localhost,127.0.0.1").split(",") if host.strip()
-]
+ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
 
 
 # Application definition
@@ -78,7 +76,7 @@ AUTH_USER_MODEL = 'core.User'
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    "whitenoise.middleware.WhiteNoiseMiddleware",
+    # "whitenoise.middleware.WhiteNoiseMiddleware",
     'corsheaders.middleware.CorsMiddleware', # Ensured CorsMiddleware is present
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -88,25 +86,13 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-cors_origins = os.environ.get("CORS_ALLOWED_ORIGINS", "")
-if cors_origins:
-    CORS_ALLOWED_ORIGINS = [origin.strip() for origin in cors_origins.split(",") if origin.strip()]
-elif DEBUG:
-    CORS_ALLOWED_ORIGINS = [
+CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
-        "http://localhost:3001",
-        "http://localhost:3002",
-        "https://pythonedition.vercel.app",
-    ]
-else:
-    CORS_ALLOWED_ORIGINS = [
-        "https://pythonedition.vercel.app",
-    ]
-
-CORS_ALLOWED_ORIGIN_REGEXES = [
-    r"^https://.*\.onrender\.com$",
-    r"^https://.*\.vercel\.app$",
+    "http://localhost:3001",
+    "http://localhost:3002",
 ]
+
+
 
 cors_allow_all = os.getenv("CORS_ALLOW_ALL_ORIGINS", "")
 if cors_allow_all:
@@ -116,22 +102,11 @@ else:
 
 CORS_ALLOW_CREDENTIALS = True
 
-csrf_origins = os.environ.get("CSRF_TRUSTED_ORIGINS", "")
-if csrf_origins:
-    CSRF_TRUSTED_ORIGINS = [origin.strip() for origin in csrf_origins.split(",") if origin.strip()]
-elif cors_origins:
-    CSRF_TRUSTED_ORIGINS = [origin.strip() for origin in cors_origins.split(",") if origin.strip()]
-elif DEBUG:
-    CSRF_TRUSTED_ORIGINS = [
-        "http://localhost:3000",
-        "http://localhost:3001",
-        "http://localhost:3002",
-        "https://pythonedition.vercel.app",
-    ]
-else:
-    CSRF_TRUSTED_ORIGINS = [
-        "https://pythonedition.vercel.app",
-    ]
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:3000",
+    "http://localhost:3001",
+    "http://localhost:3002",
+]
 
 
 ROOT_URLCONF = 'python_edition_django.urls'
@@ -161,7 +136,7 @@ DATABASES = {
     "default": dj_database_url.config(
         default=os.getenv("DATABASE_URL", f"sqlite:///{BASE_DIR}/db.sqlite3"),
         conn_max_age=600,
-        ssl_require=not DEBUG
+
     )
 }
 

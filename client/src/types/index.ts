@@ -9,6 +9,8 @@ export interface User {
   masteryVector: Record<string, any>;
   engagement_score: number;
   level?: string;
+  is_staff?: boolean;
+  is_superuser?: boolean;
 }
 
 export interface Module {

@@ -7,7 +7,7 @@
     "node": ">=18.18.0 <23.0.0"
   },
   "scripts": {
-    "dev:backend": "cd backend && .\\venv\\Scripts\\python.exe manage.py runserver",
+    "dev:backend": "cd backend && .\\venv\\Scripts\\activate && python manage.py runserver",
     "dev:frontend": "vite --port 3000",
     "dev": "concurrently --kill-others-on-fail --names \"Backend,Frontend\" \"npm run dev:backend\" \"npm run dev:frontend\"",
     "build": "vite build",

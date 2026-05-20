@@ -1,5 +1,6 @@
 import { Trophy, Star, Target, Award, Zap, Crown } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { useAuth } from "@/hooks/use-auth";
@@ -19,6 +20,32 @@ const iconMap: Record<string, any> = {
 export default function Achievements() {
   const { user } = useAuth();
   const [selectedCategory, setSelectedCategory] = useState("All");
+  const handleDownloadCertificate = async (moduleId: string) => {
+    try {
+      const accessToken = getAccessToken();
+      const response = await fetch(apiUrl(`/certificates/${moduleId}/download/`), {
+        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
+      });
+
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `certificate_${user?.username || 'user'}_${moduleId}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+      } else {
+        const errorData = await response.json();
+        alert(`Failed to download certificate: ${errorData.message || response.statusText}`);
+      }
+    } catch (error) {
+      console.error("Error downloading certificate:", error);
+      alert("An error occurred while downloading the certificate.");
+    }
+  };
   const { data: summary } = useQuery({
     queryKey: ["/api/gamification/summary"],
     queryFn: async () => {
@@ -152,6 +179,16 @@ export default function Achievements() {
                         </div>
                         <Progress value={(achievement.progress / achievement.maxProgress) * 100} />
                       </div>
+                      {achievement.unlocked && achievement.category === "Mastery" && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="mt-3 w-full"
+                          onClick={() => handleDownloadCertificate(achievement.id)}
+                        >
+                          Download Certificate
+                        </Button>
+                      )}
                     </div>
                   </div>
                 </CardContent>
