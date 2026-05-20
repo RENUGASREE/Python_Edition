@@ -39,7 +39,12 @@ DEBUG = os.getenv("DJANGO_DEBUG", "true").strip().lower() in ("1", "true", "yes"
 
 APPEND_SLASH = True
 
-ALLOWED_HOSTS = ["localhost", "127.0.0.1"]
+# Read ALLOWED_HOSTS from environment variable (comma-separated list)
+_allowed_hosts_env = os.getenv("ALLOWED_HOSTS", "")
+ALLOWED_HOSTS = [h.strip() for h in _allowed_hosts_env.split(",") if h.strip()] if _allowed_hosts_env else []
+ALLOWED_HOSTS += ["localhost", "127.0.0.1"]
+# Also allow all Render subdomains automatically
+ALLOWED_HOSTS += [".onrender.com"]
 
 
 # Application definition
@@ -76,7 +81,7 @@ AUTH_USER_MODEL = 'core.User'
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    # "whitenoise.middleware.WhiteNoiseMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     'corsheaders.middleware.CorsMiddleware', # Ensured CorsMiddleware is present
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -86,13 +91,24 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-CORS_ALLOWED_ORIGINS = [
+# Base CORS/CSRF origins (always included)
+_BASE_ORIGINS = [
     "http://localhost:3000",
     "http://localhost:3001",
     "http://localhost:3002",
 ]
 
+# Read extra origins from environment variable (comma-separated)
+_cors_env = os.getenv("CORS_ALLOWED_ORIGINS", "")
+_extra_origins = [o.strip() for o in _cors_env.split(",") if o.strip()] if _cors_env else []
 
+CORS_ALLOWED_ORIGINS = _BASE_ORIGINS + _extra_origins
+
+# Allow all *.onrender.com origins automatically
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r"^https://.*\.onrender\.com$",
+    r"^https://.*\.vercel\.app$",
+]
 
 cors_allow_all = os.getenv("CORS_ALLOW_ALL_ORIGINS", "")
 if cors_allow_all:
@@ -102,11 +118,11 @@ else:
 
 CORS_ALLOW_CREDENTIALS = True
 
-CSRF_TRUSTED_ORIGINS = [
-    "http://localhost:3000",
-    "http://localhost:3001",
-    "http://localhost:3002",
-]
+# Read extra CSRF origins from environment variable (comma-separated)
+_csrf_env = os.getenv("CSRF_TRUSTED_ORIGINS", "")
+_extra_csrf = [o.strip() for o in _csrf_env.split(",") if o.strip()] if _csrf_env else []
+
+CSRF_TRUSTED_ORIGINS = _BASE_ORIGINS + _extra_csrf + _extra_origins
 
 
 ROOT_URLCONF = 'python_edition_django.urls'
