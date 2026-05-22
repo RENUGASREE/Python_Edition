@@ -148,11 +148,16 @@ WSGI_APPLICATION = 'python_edition_django.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
+# Dynamically determine conn_max_age to prevent Supabase connection pooling lockups.
+# Transaction pooler (port 6543) requires conn_max_age = 0.
+db_url = os.getenv("DATABASE_URL", "")
+default_conn_max_age = 0 if ("supabase" in db_url or "6543" in db_url or "pgbouncer" in db_url or "postgres" in db_url) else 600
+conn_max_age_val = int(os.getenv("CONN_MAX_AGE", default_conn_max_age))
+
 DATABASES = {
     "default": dj_database_url.config(
         default=os.getenv("DATABASE_URL", f"sqlite:///{BASE_DIR}/db.sqlite3"),
-        conn_max_age=600,
-
+        conn_max_age=conn_max_age_val,
     )
 }
 

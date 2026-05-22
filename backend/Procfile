@@ -1,1 +1,1 @@
-web: gunicorn python_edition_django.wsgi
+web: gunicorn --workers 3 --threads 2 python_edition_django.wsgi
