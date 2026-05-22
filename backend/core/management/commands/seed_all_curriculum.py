@@ -40,7 +40,7 @@ class Command(BaseCommand):
         for cmd in commands:
             self.stdout.write(f"Running command: {cmd}...")
             try:
-                call_command(cmd, noinput=True)
+                call_command(cmd)
                 self.stdout.write(self.style.SUCCESS(f"Successfully ran {cmd}\n"))
             except Exception as e:
                 self.stdout.write(self.style.ERROR(f"Error running {cmd}: {str(e)}\n"))
