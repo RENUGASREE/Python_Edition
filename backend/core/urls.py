@@ -1,6 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import RegisterView, LoginView, UserProfileView, LogoutView, RunChallengeView, ProgressViewSet, QuizAttemptViewSet, BadgeViewSet, CertificateViewSet, RecommendationViewSet, ChatMessageViewSet, ModuleViewSet, LessonViewSet, UserProgressViewSet, QuizViewSet, QuestionViewSet, ChallengeViewSet, MasteryUpdateView, AdaptiveRecommendationView, SubmitQuizView, AITutorView, CertificateDownloadView, ModuleQuizView, CertificateVerifyView
+from .views import RegisterView, LoginView, UserProfileView, LogoutView, RunChallengeView, ProgressViewSet, QuizAttemptViewSet, BadgeViewSet, CertificateViewSet, RecommendationViewSet, ChatMessageViewSet, ModuleViewSet, LessonViewSet, UserProgressViewSet, QuizViewSet, QuestionViewSet, ChallengeViewSet, MasteryUpdateView, AdaptiveRecommendationView, SubmitQuizView, AITutorView, CertificateDownloadView, ModuleQuizView, CertificateVerifyView, SeedDatabaseView
 
 router = DefaultRouter()
 router.register(r'modules', ModuleViewSet)
@@ -31,5 +31,7 @@ urlpatterns = [
     path('certificates/<str:module_id>/download/', CertificateDownloadView.as_view(), name='certificate_download'),
     path('verify/certificate/<uuid:code>/', CertificateVerifyView.as_view(), name='certificate_verify'),
     path('modules/<str:module_id>/quiz/', ModuleQuizView.as_view(), name='module_quiz'),
+    path('seed-database/', SeedDatabaseView.as_view(), name='seed_database'),
     path('', include(router.urls)),
 ]
+

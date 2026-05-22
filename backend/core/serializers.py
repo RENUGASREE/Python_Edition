@@ -84,67 +84,63 @@ class UserSerializer(serializers.ModelSerializer):
                 module_completed = True
                 break
 
-        achievements_list = []
-        if completed_lessons >= 1:
-            achievements_list.append({
+        achievements_list = [
+            {
                 "id": "1",
                 "title": "First Steps",
                 "description": "Complete your first lesson",
                 "icon": "Star",
-                "progress": 1,
+                "progress": min(completed_lessons, 1),
                 "maxProgress": 1,
-                "unlocked": True,
+                "unlocked": completed_lessons >= 1,
                 "points": 10,
                 "category": "Beginner"
-            })
-        if completed_lessons >= 10:
-            achievements_list.append({
+            },
+            {
                 "id": "2",
                 "title": "Code Warrior",
                 "description": "Complete 10 lessons",
                 "icon": "Target",
-                "progress": 10,
+                "progress": min(completed_lessons, 10),
                 "maxProgress": 10,
-                "unlocked": True,
+                "unlocked": completed_lessons >= 10,
                 "points": 50,
                 "category": "Challenges"
-            })
-        if current_streak >= 7:
-            achievements_list.append({
+            },
+            {
                 "id": "3",
                 "title": "Streak Master",
                 "description": "Maintain a 7-day learning streak",
                 "icon": "Zap",
-                "progress": 7,
+                "progress": min(current_streak, 7),
                 "maxProgress": 7,
-                "unlocked": True,
+                "unlocked": current_streak >= 7,
                 "points": 100,
                 "category": "Consistency"
-            })
-        if module_completed:
-            achievements_list.append({
+            },
+            {
                 "id": "4",
                 "title": "Module Champion",
                 "description": "Complete an entire module",
                 "icon": "Award",
-                "progress": 1,
+                "progress": 1 if module_completed else 0,
                 "maxProgress": 1,
-                "unlocked": True,
+                "unlocked": module_completed,
                 "points": 75,
                 "category": "Progress"
-            })
-        if completed_lessons >= 25:
-            achievements_list.append({
+            },
+            {
                 "id": "5",
                 "title": "Python Expert",
                 "description": "Complete all Python lessons",
                 "icon": "Crown",
-                "progress": 25,
+                "progress": min(completed_lessons, 25),
                 "maxProgress": 25,
-                "unlocked": True,
+                "unlocked": completed_lessons >= 25,
                 "points": 200,
                 "category": "Mastery"
-            })
+            }
+        ]
 
         return achievements_list
 

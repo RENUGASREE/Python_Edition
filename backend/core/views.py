@@ -1828,3 +1828,28 @@ class ModuleQuizView(APIView):
                 quiz_id__in=Quiz.objects.filter(lesson_id__in=lesson_ids)
             ).count()
         })
+
+
+class SeedDatabaseView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request, *args, **kwargs):
+        from django.core.management import call_command
+        import threading
+
+        def run_seeding():
+            print("Starting background migration & seeding...")
+            try:
+                call_command('migrate')
+                call_command('seed_all_curriculum')
+                print("Background seeding completed successfully!")
+            except Exception as e:
+                print(f"Error during background seeding: {str(e)}")
+
+        thread = threading.Thread(target=run_seeding)
+        thread.start()
+
+        return Response({
+            "message": "Database migrations and seeding initiated in the background. Please wait 1-2 minutes and then check your application."
+        })
+
