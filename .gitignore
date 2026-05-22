@@ -1,4 +1,4 @@
-# Ignore virtual environment and Python artifacts
+# Ignore virtual environment and other unwanted files
 backend/venv/
 __pycache__/
 *.pyc
