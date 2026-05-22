@@ -384,6 +384,13 @@ class SimpleLessonSerializer(serializers.ModelSerializer):
         profile = self._profile(obj)
         return profile.embedding_vector if profile else []
 
+class ModuleLessonSerializer(serializers.ModelSerializer):
+    moduleId = serializers.CharField(source='module_id')
+
+    class Meta:
+        model = Lesson
+        fields = ('id', 'moduleId', 'title', 'slug', 'content', 'order', 'difficulty', 'duration')
+
 class ModuleSerializer(serializers.ModelSerializer):
     imageUrl = serializers.CharField(source='image_url', required=False)
     lessons = serializers.SerializerMethodField()
@@ -414,7 +421,6 @@ class ModuleSerializer(serializers.ModelSerializer):
         ).exists()
 
     def get_lessons(self, obj):
-        # ... (keep existing implementation)
         request = self.context.get("request")
         user = request.user if request else None
         if not user or not user.is_authenticated:
@@ -489,20 +495,17 @@ class ModuleSerializer(serializers.ModelSerializer):
             completed=True,
         ).values_list("lesson_id", flat=True))
         
-        prereq_map = {
-            item["lesson_id"]: (item["prerequisites"] or [])
-            for item in LessonProfile.objects.filter(lesson_id__in=[lesson.id for lesson in lessons]).values("lesson_id", "prerequisites")
-        }
-        
         unlocked = []
+        completed_set = self.context.get("precalculated_completed_lessons", completed_ids)
+        unlocked_map = self.context.get("precalculated_unlocked_lessons", {})
+        
         for idx, lesson in enumerate(lessons):
-            from .views import _lesson_unlocked
-            is_unlocked = _lesson_unlocked(user, lesson)
+            is_unlocked = unlocked_map.get(lesson.id, False)
+            is_completed = lesson.id in completed_set
             
-            # Use SimpleLessonSerializer if LessonSerializer causes circular issues
-            data = LessonSerializer(lesson, context=self.context).data
+            data = ModuleLessonSerializer(lesson, context=self.context).data
             data["unlocked"] = is_unlocked
-            data["completed"] = lesson.id in completed_ids
+            data["completed"] = is_completed
             unlocked.append(data)
         return unlocked
 

@@ -791,6 +791,150 @@ class ModuleViewSet(viewsets.ModelViewSet):
                     diff_map[target.replace("-", "_")] = lvl
                 
         context["precalculated_difficulties"] = diff_map
+
+        # --- Batch Pre-calculation of Lesson Unlocked and Completed statuses to solve N+1 query explosion ---
+        try:
+            # 1. Diagnostic quiz completion status
+            from assessments.models import DiagnosticQuizAttempt
+            quiz_completed = DiagnosticQuizAttempt.objects.filter(user=user, status="COMPLETED").exists() or getattr(user, "has_taken_quiz", False) or getattr(user, "diagnostic_completed", False)
+            
+            user_uuid = user.original_uuid or str(user.id)
+            
+            # 2. Get all completed lesson IDs for this user
+            completed_lesson_ids = set(UserProgress.objects.filter(user_id=user_uuid, completed=True).values_list("lesson_id", flat=True))
+            
+            # 3. Load all modules and lessons
+            all_modules = list(Module.objects.all().order_by("order"))
+            all_lessons = list(Lesson.objects.all().order_by("module_id", "order"))
+            
+            # 4. Load all lesson profiles (for prerequisites)
+            from .models import LessonProfile
+            all_profiles = {p.lesson_id: (p.prerequisites or []) for p in LessonProfile.objects.all()}
+            
+            # Group lessons by module for easy O(1) in-memory retrieval
+            lessons_by_module = {}
+            for l in all_lessons:
+                lessons_by_module.setdefault(l.module_id, []).append(l)
+                
+            # Pre-calculate module completion
+            module_completion_map = {}
+            for m in all_modules:
+                m_lessons = lessons_by_module.get(m.id, [])
+                if not m_lessons:
+                    module_completion_map[m.id] = False
+                    continue
+                    
+                # Find assigned difficulty for the module
+                assigned_difficulty = None
+                mod_id = str(m.id)
+                search_keys = [mod_id, mod_id.replace("-", "_")]
+                if mod_id in reverse_mappings:
+                    search_keys.append(reverse_mappings[mod_id])
+                
+                for sk in search_keys:
+                    if sk in diff_map:
+                        assigned_difficulty = diff_map[sk]
+                        break
+                    if sk.lower() in diff_map:
+                        assigned_difficulty = diff_map[sk.lower()]
+                        break
+                
+                target_level = assigned_difficulty or user.level or "Beginner"
+                normalized = target_level.strip().lower()
+                if normalized in ("pro", "advanced"):
+                    normalized = "Pro"
+                elif normalized == "intermediate":
+                    normalized = "Intermediate"
+                else:
+                    normalized = "Beginner"
+                    
+                filtered = [l for l in m_lessons if l.difficulty == normalized]
+                if not filtered:
+                    filtered = m_lessons
+                    
+                module_completion_map[m.id] = all(l.id in completed_lesson_ids for l in filtered)
+                
+            # Pre-calculate module unlocking
+            module_unlocked_map = {}
+            for m in all_modules:
+                if m.order == 1:
+                    module_unlocked_map[m.id] = True
+                elif not quiz_completed:
+                    module_unlocked_map[m.id] = False
+                else:
+                    # Find previous module
+                    prev_mod = next((pm for pm in all_modules if pm.order == m.order - 1), None)
+                    if not prev_mod:
+                        module_unlocked_map[m.id] = True
+                    else:
+                        prev_lessons = lessons_by_module.get(prev_mod.id, [])
+                        if not prev_lessons:
+                            module_unlocked_map[m.id] = True
+                        else:
+                            module_unlocked_map[m.id] = module_completion_map.get(prev_mod.id, False)
+
+            # In-memory prerequisites verification helper
+            lesson_by_id = {l.id: l for l in all_lessons}
+            
+            def check_prerequisites_met(l_id):
+                prereqs = all_profiles.get(str(l_id), [])
+                if not prereqs:
+                    return True
+                for prereq_id in prereqs:
+                    prereq_str = str(prereq_id)
+                    if prereq_str in completed_lesson_ids:
+                        continue
+                    prereq_lesson = lesson_by_id.get(prereq_str)
+                    if not prereq_lesson:
+                        continue
+                    # Check if any difficulty version of the prerequisite lesson is completed
+                    same_order_ids = [
+                        l.id for l in lessons_by_module.get(prereq_lesson.module_id, [])
+                        if l.order == prereq_lesson.order
+                    ]
+                    if not any(so_id in completed_lesson_ids for so_id in same_order_ids):
+                        return False
+                return True
+
+            # Pre-calculate lesson unlocking map
+            unlocked_lessons_map = {}
+            for l in all_lessons:
+                if not quiz_completed:
+                    # If quiz is not completed, only first lesson of first module is unlocked
+                    m = next((mod for mod in all_modules if mod.id == l.module_id), None)
+                    if m and m.order == 1 and l.order == 1:
+                        unlocked_lessons_map[l.id] = True
+                    else:
+                        unlocked_lessons_map[l.id] = False
+                    continue
+                    
+                if not module_unlocked_map.get(l.module_id, False):
+                    unlocked_lessons_map[l.id] = False
+                    continue
+                    
+                if l.order == 1:
+                    unlocked_lessons_map[l.id] = check_prerequisites_met(l.id)
+                else:
+                    # Check if previous lesson in sequence is completed
+                    prev_order = l.order - 1
+                    same_module_lessons = lessons_by_module.get(l.module_id, [])
+                    prev_lessons_completed = any(
+                        pl.id in completed_lesson_ids
+                        for pl in same_module_lessons
+                        if pl.order == prev_order
+                    )
+                    has_prev_order = any(pl.order == prev_order for pl in same_module_lessons)
+                    sequential_ok = prev_lessons_completed if has_prev_order else True
+                    
+                    unlocked_lessons_map[l.id] = sequential_ok and check_prerequisites_met(l.id)
+                    
+            context["precalculated_completed_lessons"] = completed_lesson_ids
+            context["precalculated_unlocked_lessons"] = unlocked_lessons_map
+        except Exception as e:
+            # Fallback gracefully in case of database or parsing exceptions
+            import logging
+            logging.getLogger(__name__).error(f"Error in batch precalculation: {e}", exc_info=True)
+            
         return context
 
     def get_queryset(self):
