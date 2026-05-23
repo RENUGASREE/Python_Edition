@@ -105,18 +105,21 @@ def setup_production():
         
         # Badges
         badges = [
-            {"name": "Python Pioneer", "description": "Completed the first lesson in Python Edition."},
-            {"name": "Quiz Master", "description": "Scored 100% on a module diagnostic quiz."},
-            {"name": "Streak Star", "description": "Maintained a 7-day learning streak."},
-            {"name": "Topic Pro", "description": "Reached 'Pro' level in any curriculum topic."},
-            {"name": "Bug Hunter", "description": "Successfully debugged 5 complex Python scripts."},
-            {"name": "Fast Finger", "description": "Completed a coding challenge in under 30 seconds."},
-            {"name": "Deep Diver", "description": "Completed 100% of a module's content and challenges."},
-            {"name": "AI Tinkerer", "description": "Used the AI Tutor to optimize or explain complex logic."},
-            {"name": "Persistent", "description": "Logged in and learned for 7 consecutive days."},
-            {"name": "Syntax Sage", "description": "Passed 5 quizzes without a single syntax error."},
-            {"name": "Algorithm Architect", "description": "Mastered complex nested data structures and logic."},
-            {"name": "Logic Legend", "description": "Completed Advanced sessions with 100% accuracy."}
+            {"name": "python-pioneer", "description": "Completed the first lesson in Python Edition."},
+            {"name": "quiz-master", "description": "Scored 100% on a module diagnostic quiz."},
+            {"name": "streak-star", "description": "Maintained a 7-day learning streak."},
+            {"name": "topic-pro", "description": "Reached 'Pro' level in any curriculum topic."},
+            {"name": "bug-hunter", "description": "Successfully debugged 5 complex Python scripts."},
+            {"name": "fast-finger", "description": "Completed a coding challenge in under 30 seconds."},
+            {"name": "deep-diver", "description": "Completed 100% of a module's content and challenges."},
+            {"name": "ai-tinkerer", "description": "Used the AI Tutor to optimize or explain complex logic."},
+            {"name": "persistent", "description": "Logged in and learned for 7 consecutive days."},
+            {"name": "syntax-sage", "description": "Passed 5 quizzes without a single syntax error."},
+            {"name": "algorithm-architect", "description": "Mastered complex nested data structures and logic."},
+            {"name": "logic-legend", "description": "Completed Advanced sessions with 100% accuracy."},
+            {"name": "loop-master", "description": "Maintain a 5-day learning streak."},
+            {"name": "function-pro", "description": "Earn 200 XP from practice."},
+            {"name": "consistent-learner", "description": "Complete 10 lessons."}
         ]
         for b_data in badges:
             Badge.objects.get_or_create(name=b_data["name"], defaults={"description": b_data["description"]})
