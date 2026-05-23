@@ -297,7 +297,7 @@ def _lesson_unlocked(user, lesson):
     if not _quiz_completed(user):
         # Allow first lesson of first module even without quiz
         module = Module.objects.filter(id=lesson.module_id).first()
-        if module and module.order == 1 and lesson.order == 1:
+        if module and module.order == 0 and lesson.order == 1:
             return True
         return False
     module = Module.objects.filter(id=lesson.module_id).first()
