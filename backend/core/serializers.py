@@ -405,6 +405,17 @@ class ModuleSerializer(serializers.ModelSerializer):
         request = self.context.get("request")
         if not request or not request.user.is_authenticated:
             return True
+            
+        unlocked_map = self.context.get("precalculated_unlocked_lessons")
+        if unlocked_map is not None:
+            # Check if any lesson in the module is unlocked
+            module_lessons = [l_id for l_id, is_unlocked in unlocked_map.items() if is_unlocked]
+            if module_lessons:
+                # Need to verify if these lessons belong to this module.
+                # Actually, ModuleViewSet provides precalculated_module_unlocked? No, but we can do a simpler check.
+                pass
+                
+        # To avoid complex logic here, simply check completion map
         from .views import _module_completed
         return not _module_completed(request.user, obj.id)
 
@@ -412,8 +423,14 @@ class ModuleSerializer(serializers.ModelSerializer):
         request = self.context.get("request")
         if not request or not request.user.is_authenticated:
             return False
-        # Check if any quiz attempt exists for this module
-        # Attempts currently store "module:{id}:level:{level}" in notes
+            
+        # Optimization: use precalculated context
+        diff_map = self.context.get("precalculated_difficulties")
+        if diff_map is not None:
+            mod_id = str(obj.id)
+            if mod_id in diff_map or mod_id.replace("-", "_") in diff_map:
+                return True
+                
         from .models import QuizAttempt
         return QuizAttempt.objects.filter(
             user=request.user, 

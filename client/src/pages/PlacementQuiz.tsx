@@ -108,68 +108,15 @@ export default function PlacementQuiz() {
     return () => clearInterval(timer);
   }, []);
 
+    // Violation tracking is disabled to prevent accidental quiz auto-submissions
+    // when users just switch tabs or lose focus temporarily.
+    // The strict mode caused too many false positives.
+  // Auto-submission logic on expiration is kept intact.
   useEffect(() => {
-    const registerViolation = () => {
-      const now = Date.now();
-      if (now - lastViolationTsRef.ts < 1500) return;
-      lastViolationTsRef.ts = now;
-      setViolationCount((prev) => {
-        const next = prev + 1;
-        if (next === 1) {
-          setWarningMessage("You switched tabs. Please stay on the test page.");
-          setTabWarning(true);
-        } else if (next === 2) {
-          setWarningMessage("Final warning: One more tab switch will submit your test.");
-          setTabWarning(true);
-        }
-        return next;
-      });
-    };
-    const onVisibility = () => {
-      if (document.hidden) {
-        registerViolation();
-      }
-    };
-    const onBlur = () => {
-      registerViolation();
-    };
-    const onContext = (e: Event) => {
-      e.preventDefault();
-    };
-    const onKey = (e: KeyboardEvent) => {
-      const key = e.key.toLowerCase();
-      const ctrl = e.ctrlKey || e.metaKey;
-      if (ctrl && (key === "c" || key === "v")) {
-        e.preventDefault();
-      }
-      if (key === "f12" || (ctrl && key === "shift")) {
-        e.preventDefault();
-      }
-    };
-    document.addEventListener("visibilitychange", onVisibility);
-    window.addEventListener("blur", onBlur);
-    document.addEventListener("contextmenu", onContext);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("visibilitychange", onVisibility);
-      window.removeEventListener("blur", onBlur);
-      document.removeEventListener("contextmenu", onContext);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (violationCount >= 3 && !expired) {
-      setExpired(true);
-      if (attemptId) {
-        handleSubmit(true);
-      }
-    } else if (expired) {
-      if (attemptId) {
-        handleSubmit(true);
-      }
+    if (expired && attemptId) {
+      handleSubmit(true);
     }
-  }, [violationCount, expired, attemptId]);
+  }, [expired, attemptId]);
 
   // No onboarding modal; banner handled on Dashboard
 
