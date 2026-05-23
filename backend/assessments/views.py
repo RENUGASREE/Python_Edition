@@ -78,6 +78,10 @@ class DiagnosticSubmitView(APIView):
         attempt.status = status_value
         attempt.save(update_fields=["module_scores", "overall_score", "raw_score", "weighted_score", "difficulty_tier", "completed_at", "locked", "status", "violation_count"])
         analyze_user_skill_gaps(request.user)
+        # Update user flags to unlock lessons
+        request.user.diagnostic_completed = True
+        request.user.has_taken_quiz = True
+        request.user.save(update_fields=["diagnostic_completed", "has_taken_quiz"])
         return Response({
             "moduleScores": module_scores,
             "overallScore": raw_score,
