@@ -37,6 +37,10 @@ class Lesson(models.Model):
 
     class Meta:
         db_table = 'lessons'
+        indexes = [
+            models.Index(fields=['module_id', 'order']),
+            models.Index(fields=['module_id', 'difficulty']),
+        ]
 
 class Quiz(models.Model):
     id = models.CharField(primary_key=True, max_length=255)
