@@ -17,25 +17,25 @@ def setup_production():
 
     # 1. Create Superuser if not exists
     if not User.objects.filter(username=admin_user).exists():
-        print(f"👤 Creating superuser: {admin_user}...")
+        print(f"Creating superuser: {admin_user}...")
         User.objects.create_superuser(admin_user, admin_email, admin_password)
-        print("✅ Superuser created.")
+        print("Superuser created.")
     else:
-        print("ℹ️ Superuser already exists.")
+        print("Superuser already exists.")
 
     # 2. Run Quizzes Seed (Diagnostic)
     try:
         from seed_quiz import seed_quiz_questions
         seed_quiz_questions()
     except Exception as e:
-        print(f"❌ Error seeding diagnostic quizzes: {e}")
+        print(f"Error seeding diagnostic quizzes: {e}")
 
     # 3. Seed Curriculum (Modules, Lessons, Challenges)
     try:
         from curriculum_data import CURRICULUM_DATA
         from core.models import Module, Lesson, Challenge
         
-        print("📚 Seeding Curriculum Data...")
+        print("Seeding Curriculum Data...")
         module_titles = {
             "19": "Python Fundamentals",
             "20": "Data Structures",
@@ -93,15 +93,15 @@ def setup_production():
                                 "points": 10
                             }
                         )
-        print("✅ Curriculum Seeded.")
+        print("Curriculum Seeded.")
     except Exception as e:
-        print(f"❌ Error seeding curriculum: {e}")
+        print(f"Error seeding curriculum: {e}")
 
     # 4. Seed Badges & Certificate Templates
     try:
         from core.models import Badge, CertificateTemplate
         
-        print("🏅 Seeding Gamification & Certificates...")
+        print("Seeding Gamification & Certificates...")
         
         # Badges
         badges = [
@@ -136,21 +136,21 @@ def setup_production():
         try:
             from core.models import Certificate
             import uuid
-            print("📜 Syncing Certificate Verification Codes...")
+            print("Syncing Certificate Verification Codes...")
             certs_to_update = Certificate.objects.filter(verification_code__isnull=True)
             if certs_to_update.exists():
                 for cert in certs_to_update:
                     cert.verification_code = uuid.uuid4()
                     cert.save()
-                print(f"✅ Synced {certs_to_update.count()} certificates.")
+                print(f"Synced {certs_to_update.count()} certificates.")
             else:
-                print("ℹ️ All certificates already have verification codes.")
+                print("All certificates already have verification codes.")
         except Exception as e:
-            print(f"❌ Error syncing certificates: {e}")
+            print(f"Error syncing certificates: {e}")
 
-        print("✅ Gamification & Certificates Seeded.")
+        print("Gamification & Certificates Seeded.")
     except Exception as e:
-        print(f"❌ Error seeding gamification/certificates: {e}")
+        print(f"Error seeding gamification/certificates: {e}")
 
 if __name__ == "__main__":
     setup_production()

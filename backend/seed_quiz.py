@@ -58,7 +58,7 @@ def seed_quiz_questions():
         }
     ]
 
-    print("🚀 Seeding Diagnostic Questions...")
+    print("Seeding Diagnostic Questions...")
     for q_data in questions:
         # Check if exists
         if not DiagnosticQuestion.objects.filter(text=q_data["text"]).exists():
@@ -70,7 +70,7 @@ def seed_quiz_questions():
                 options=q_data["options"],
                 correct_index=q_data["correct_index"]
             )
-    print("✅ Questions Seeded.")
+    print("Questions Seeded.")
 
 if __name__ == "__main__":
     seed_quiz_questions()
