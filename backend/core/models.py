@@ -83,6 +83,10 @@ class UserProgress(models.Model):
 
     class Meta:
         db_table = 'user_progress'
+        indexes = [
+            models.Index(fields=['user_id', 'lesson_id']),
+            models.Index(fields=['user_id', 'completed']),
+        ]
 
 # --- End Content Models ---
 

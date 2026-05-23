@@ -111,12 +111,13 @@ export default function PlacementQuiz() {
     // Violation tracking is disabled to prevent accidental quiz auto-submissions
     // when users just switch tabs or lose focus temporarily.
     // The strict mode caused too many false positives.
-  // Auto-submission logic on expiration is kept intact.
-  useEffect(() => {
-    if (expired && attemptId) {
-      handleSubmit(true);
-    }
-  }, [expired, attemptId]);
+  // Auto-submission on expiration is DISABLED to prevent quiz auto-completion
+  // without user action. Users must manually submit the quiz.
+  // useEffect(() => {
+  //   if (expired && attemptId) {
+  //     handleSubmit(true);
+  //   }
+  // }, [expired, attemptId]);
 
   // No onboarding modal; banner handled on Dashboard
 

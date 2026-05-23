@@ -36,10 +36,16 @@ def setup_production():
         from core.models import Module, Lesson, Challenge
         
         print("📚 Seeding Curriculum Data...")
+        module_titles = {
+            "19": "Python Fundamentals",
+            "20": "Data Structures",
+            "21": "Control Flow",
+            "22": "Object-Oriented Programming"
+        }
         for m_idx, module_data in enumerate(CURRICULUM_DATA):
             m_id = str(module_data["module_id"])
-            m_title = "Python Fundamentals" if m_id == "19" else "Data Structures"
-            
+            m_title = module_titles.get(m_id, f"Module {m_id}")
+
             module, _ = Module.objects.update_or_create(
                 id=m_id,
                 defaults={

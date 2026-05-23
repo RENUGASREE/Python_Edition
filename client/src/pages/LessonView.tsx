@@ -173,6 +173,12 @@ export default function LessonView() {
       if (!firstLesson) return false;
       if (id === firstLesson.id) {
         if (isModuleLocked(firstLesson.moduleId)) return true;
+        // First lesson of first module should be accessible even without placement quiz
+        // This aligns with backend logic in _lesson_unlocked()
+        const firstModule = modules?.[0];
+        if (firstModule && firstModule.order === 1 && (firstLesson as any).order === 1) {
+          return false; // Always unlock first lesson of first module
+        }
         return !placementCompleted;
       }
       // If not the first lesson and not found in allLessons, something is wrong with level filtering.
@@ -181,7 +187,7 @@ export default function LessonView() {
       if (l && isModuleLocked(l.moduleId)) return true;
       return false;
     }
-    
+
     const previousLesson = allLessons[lessonIndex - 1];
     return !isLessonCompleted(previousLesson.id);
   };

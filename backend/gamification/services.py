@@ -16,6 +16,18 @@ def award_badge(user: User, code: str):
 
 def ensure_badges():
     badges = [
+        ("python-pioneer", "Python Pioneer", "Completed the first lesson in Python Edition."),
+        ("quiz-master", "Quiz Master", "Scored 100% on a module diagnostic quiz."),
+        ("streak-star", "Streak Star", "Maintained a 7-day learning streak."),
+        ("topic-pro", "Topic Pro", "Reached 'Pro' level in any curriculum topic."),
+        ("bug-hunter", "Bug Hunter", "Successfully debugged 5 complex Python scripts."),
+        ("fast-finger", "Fast Finger", "Completed a coding challenge in under 30 seconds."),
+        ("deep-diver", "Deep Diver", "Completed 100% of a module's content and challenges."),
+        ("ai-tinkerer", "AI Tinkerer", "Used the AI Tutor to optimize or explain complex logic."),
+        ("persistent", "Persistent", "Logged in and learned for 7 consecutive days."),
+        ("syntax-sage", "Syntax Sage", "Passed 5 quizzes without a single syntax error."),
+        ("algorithm-architect", "Algorithm Architect", "Mastered complex nested data structures and logic."),
+        ("logic-legend", "Logic Legend", "Completed Advanced sessions with 100% accuracy."),
         ("loop-master", "Loop Master", "Maintain a 5-day learning streak."),
         ("function-pro", "Function Pro", "Earn 200 XP from practice."),
         ("consistent-learner", "Consistent Learner", "Complete 10 lessons."),
