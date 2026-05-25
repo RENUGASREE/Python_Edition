@@ -1,11 +1,18 @@
 # Ignore virtual environment and other unwanted files
 backend/venv/
+backend/.venv/
+backend/venv
+backend/.venv
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
 *.sqlite3
+*.sqlite3-journal
 .env
+.env.local
+.env.development
+.env.production
 .DS_Store
 .idea/
 .vscode/
@@ -13,5 +20,15 @@ __pycache__/
 node_modules/
 # Build artifacts
 build/
+dist/
 staticfiles/
 media/
+# Python cache
+*.py[cod]
+*$py.class
+# Distribution / packaging
+.Python
+# Django
+*.log
+local_settings.py
+db.sqlite3
