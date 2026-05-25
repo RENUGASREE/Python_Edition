@@ -808,7 +808,7 @@ class ModuleViewSet(viewsets.ModelViewSet):
             all_lessons = list(Lesson.objects.all().order_by("module_id", "order"))
             
             # 4. Load all lesson profiles (for prerequisites)
-            from .models import LessonProfile
+            from lessons.models import LessonProfile
             all_profiles = {p.lesson_id: (p.prerequisites or []) for p in LessonProfile.objects.all()}
             
             # Group lessons by module for easy O(1) in-memory retrieval
@@ -1014,6 +1014,14 @@ class ChallengeViewSet(viewsets.ModelViewSet):
     queryset = Challenge.objects.all()
     serializer_class = ChallengeSerializer
     permission_classes = (permissions.IsAuthenticated,)
+
+    def get_queryset(self):
+        # Prevent massive payloads by filtering to standalone challenges
+        # unless a specific lesson is requested.
+        lesson_id = self.request.query_params.get('lesson_id')
+        if lesson_id:
+            return self.queryset.filter(lesson_id=lesson_id)
+        return self.queryset.filter(lesson_id='-1')
 
 
 class UserProgressViewSet(viewsets.ModelViewSet):

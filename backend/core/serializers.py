@@ -386,10 +386,12 @@ class SimpleLessonSerializer(serializers.ModelSerializer):
 
 class ModuleLessonSerializer(serializers.ModelSerializer):
     moduleId = serializers.CharField(source='module_id')
+    unlocked = serializers.BooleanField(read_only=True, required=False)
+    completed = serializers.BooleanField(read_only=True, required=False)
 
     class Meta:
         model = Lesson
-        fields = ('id', 'moduleId', 'title', 'slug', 'content', 'order', 'difficulty', 'duration')
+        fields = ('id', 'moduleId', 'title', 'slug', 'content', 'order', 'difficulty', 'duration', 'unlocked', 'completed')
 
 class ModuleSerializer(serializers.ModelSerializer):
     imageUrl = serializers.CharField(source='image_url', required=False)
