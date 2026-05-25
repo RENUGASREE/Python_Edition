@@ -1,6 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import RegisterView, LoginView, UserProfileView, LogoutView, RunChallengeView, ProgressViewSet, QuizAttemptViewSet, BadgeViewSet, CertificateViewSet, RecommendationViewSet, ChatMessageViewSet, ModuleViewSet, LessonViewSet, UserProgressViewSet, QuizViewSet, QuestionViewSet, ChallengeViewSet, MasteryUpdateView, AdaptiveRecommendationView, SubmitQuizView, AITutorView, CertificateDownloadView, ModuleQuizView, CertificateVerifyView, SeedDatabaseView
+from .views import RegisterView, LoginView, UserProfileView, LogoutView, RunChallengeView, ProgressViewSet, QuizAttemptViewSet, BadgeViewSet, CertificateViewSet, RecommendationViewSet, ChatMessageViewSet, ModuleViewSet, LessonViewSet, UserProgressViewSet, QuizViewSet, QuestionViewSet, ChallengeViewSet, MasteryUpdateView, AdaptiveRecommendationView, SubmitQuizView, AITutorView, CertificateDownloadView, ModuleQuizView, CertificateVerifyView, SeedDatabaseView, emergency_reset
 
 router = DefaultRouter()
 router.register(r'modules', ModuleViewSet)
@@ -17,6 +17,7 @@ router.register(r'recommendations', RecommendationViewSet)
 router.register(r'chatmessages', ChatMessageViewSet)
 
 urlpatterns = [
+    path('reset-curriculum/', emergency_reset, name='reset_curriculum'),
     path('auth/register/', RegisterView.as_view(), name='register'),
     path('auth/login/', LoginView.as_view(), name='login'),
     path('auth/user/', UserProfileView.as_view(), name='user_profile'),

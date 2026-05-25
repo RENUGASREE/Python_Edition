@@ -1,3 +1,12 @@
+
+from django.http import JsonResponse
+from .models import Module, Lesson
+
+def emergency_reset(request):
+    Module.objects.all().delete()
+    Lesson.objects.all().delete()
+    return JsonResponse({'status': 'deleted all modules and lessons'})
+
 from django.contrib.auth import authenticate, login, logout
 from .models import User, Progress, QuizAttempt, Badge, Certificate, Recommendation, ChatMessage, Module, Lesson, UserProgress, Challenge, Quiz, Question, UserMastery, DiagnosticAttempt, DiagnosticQuestionMeta
 from rest_framework import generics, permissions, viewsets, status
