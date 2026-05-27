@@ -1,306 +1,184 @@
+import { useState, useMemo } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import Editor from "@monaco-editor/react";
+import { Zap, Search, Filter } from "lucide-react";
 import { Layout } from "@/components/Layout";
-import { useQuery } from "@tanstack/react-query";
-import { apiUrl, getAccessToken } from "@/lib/api";
-import { useState } from "react";
-import { useRunChallenge } from "@/hooks/use-lessons";
-import { Loader2 } from "lucide-react";
-import { formatConsoleOutput, getConsoleHelpText } from "@/lib/console-formatter";
-import { TerminalConsole, InteractiveConsole } from "@/components/TerminalConsole";
-import { parseInputCalls, getInputCount, formatInteractiveOutput, stripInputPromptsFromOutput } from "@/lib/interactive-console";
-import { CheckCircle2, XCircle, Play, RotateCcw, Lightbulb } from "lucide-react";
+import { GlassCard } from "@/components/GlassCard";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Progress } from "@/components/ui/progress";
+import { PageLoader } from "@/components/PageLoader";
+import { apiFetch } from "@/lib/api";
+import { useToast } from "@/hooks/use-toast";
+import type { Challenge } from "@/types";
 
-type Challenge = {
-  id: number;
-  title: string;
-  description: string;
-  difficulty?: string | null;
-  initial_code: string;
-  solution_code?: string | null;
-  test_cases: any;
-};
+const CATEGORIES = ["beginner", "intermediate", "advanced"] as const;
 
 export default function Challenges() {
+  const { toast } = useToast();
+  const [code, setCode] = useState("");
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [category, setCategory] = useState<string>("beginner");
+  const [search, setSearch] = useState("");
+
   const { data, isLoading } = useQuery({
-    queryKey: ["/api/challenges"],
-    queryFn: async () => {
-      const accessToken = getAccessToken();
-      const res = await fetch(apiUrl("/challenges/"), {
-        credentials: "include",
-        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
+    queryKey: ["challenges", category],
+    queryFn: () => apiFetch<{ challenges: Challenge[] }>(`/challenges?category=${category}`),
+  });
+
+  const { data: stats } = useQuery({
+    queryKey: ["challenge-stats"],
+    queryFn: () =>
+      apiFetch<{
+        byCategory: Record<string, { total: number; solved: number; percent: number }>;
+        recent: Challenge[];
+        totalSolved: number;
+      }>("/challenges/stats"),
+  });
+
+  const filtered = useMemo(() => {
+    const list = data?.challenges || [];
+    if (!search.trim()) return list;
+    const q = search.toLowerCase();
+    return list.filter(
+      (c) =>
+        c.title.toLowerCase().includes(q) ||
+        c.description?.toLowerCase().includes(q) ||
+        c.challengeType?.toLowerCase().includes(q)
+    );
+  }, [data, search]);
+
+  const active = filtered.find((c) => c._id === selectedId) || filtered[0];
+
+  const submit = useMutation({
+    mutationFn: (id: string) =>
+      apiFetch<{ passed: boolean; pointsAwarded?: number }>(`/challenges/${id}/submit`, {
+        method: "POST",
+        body: JSON.stringify({ code }),
+      }),
+    onSuccess: (res: { passed: boolean; pointsAwarded?: number }) => {
+      toast({
+        title: res.passed ? "Solved!" : "Try again",
+        description: res.passed ? `+${res.pointsAwarded || 0} points` : "Check your logic",
+        variant: res.passed ? "default" : "destructive",
       });
-      if (!res.ok) throw new Error("Failed to fetch challenges");
-      return res.json() as Promise<Challenge[]>;
     },
   });
-  const [selected, setSelected] = useState<Challenge | null>(null);
-  const run = useRunChallenge();
-  const [code, setCode] = useState("");
-  const [output, setOutput] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [showSolution, setShowSolution] = useState(false);
-
-  // Interactive mode state
-  const [isInteractiveMode, setIsInteractiveMode] = useState(false);
-  const [isWaitingForInput, setIsWaitingForInput] = useState(false);
-  const [collectedInputs, setCollectedInputs] = useState<string[]>([]);
-  const [interactiveOutput, setInteractiveOutput] = useState("");
-  const [totalInputsNeeded, setTotalInputsNeeded] = useState(0);
-  const [inputCalls, setInputCalls] = useState<any[]>([]);
-  const [currentInputIndex, setCurrentInputIndex] = useState(0);
-
-  const groups: Record<string, Challenge[]> = { Easy: [], Medium: [], Hard: [] };
-  (data || []).forEach((c) => {
-    // Only include standalone challenges (lesson_id is -1 or not associated with a lesson)
-    // This ensures we have exactly 10 per category
-    const d = (c.difficulty || "").toLowerCase();
-    if (d.includes("beginner") || d.includes("easy")) groups.Easy.push(c);
-    else if (d.includes("intermediate") || d.includes("medium")) groups.Medium.push(c);
-    else if (d.includes("advanced") || d.includes("hard") || d.includes("pro")) groups.Hard.push(c);
-    // Default to Easy if no difficulty specified
-    else groups.Easy.push(c);
-  });
-  
-  // Limit to 10 per category
-  Object.keys(groups).forEach(key => {
-    groups[key] = groups[key].slice(0, 10);
-  });
-
-  const handleSelect = (c: Challenge) => {
-    setSelected(c);
-    setCode(c.initial_code || "");
-    setOutput("");
-    setError(null);
-    setShowSolution(false);
-  };
-
-  const handleRun = async () => {
-    if (!selected) return;
-    
-    // Check for input() calls
-    const inputCount = getInputCount(code);
-    
-    if (inputCount > 0) {
-      // Interactive mode
-      const calls = parseInputCalls(code);
-      setInputCalls(calls);
-      setTotalInputsNeeded(inputCount);
-      setCollectedInputs([]);
-      setCurrentInputIndex(0);
-      setInteractiveOutput("");
-      setError(null);
-      setOutput("");
-      setIsInteractiveMode(true);
-      setIsWaitingForInput(true);
-    } else {
-      // Non-interactive mode
-      setIsInteractiveMode(false);
-      try {
-        setOutput("Running...");
-        setError(null);
-        const result = await run.mutateAsync({ id: selected.id, code, input: "" });
-        // Show the actual output from code execution
-        if (result.output) {
-          setOutput(result.output);
-        } else {
-          setOutput("");
-        }
-        if (result.error) {
-          setError(result.error);
-        } else if (result.passed) {
-          setOutput((prev) => (prev ? prev + "\n\n" : "") + "✅ Challenge completed successfully!");
-        }
-      } catch (e: any) {
-        setError(e?.message || "Failed to run");
-        setOutput("");
-      }
-    }
-  };
-
-  const handleInteractiveInput = async (value: string) => {
-    if (!selected) return;
-    
-    const newInputs = [...collectedInputs, value];
-    setCollectedInputs(newInputs);
-    
-    // Add to display output
-    const inputCall = inputCalls[currentInputIndex];
-    const prompt = inputCall?.prompt || "Input";
-    const displayOutput = interactiveOutput + prompt + "\n" + value + "\n";
-    setInteractiveOutput(displayOutput);
-    
-    if (newInputs.length < totalInputsNeeded) {
-      // More inputs needed
-      setCurrentInputIndex(newInputs.length);
-      setIsWaitingForInput(true);
-    } else {
-      // All inputs collected, run code
-      setIsWaitingForInput(false);
-      setOutput("Running...");
-      
-      try {
-        const result = await run.mutateAsync({
-          id: selected.id,
-          code,
-          input: newInputs.join('\n')
-        });
-
-        const cleanedRuntimeOutput = stripInputPromptsFromOutput(
-          result.output || "",
-          inputCalls.map((c) => c.prompt || "")
-        );
-
-        const finalOutput = formatInteractiveOutput(
-          inputCalls.map((c) => c.prompt || ""),
-          newInputs,
-          cleanedRuntimeOutput
-        );
-
-        setInteractiveOutput(finalOutput);
-        setOutput(finalOutput);
-
-        if (result.error) {
-          setError(result.error);
-        } else if (result.passed) {
-          setError(null);
-          setOutput((prev) => (prev ? prev + "\n\n" : "") + "✅ Challenge completed successfully!");
-        }
-      } catch (e: any) {
-        setError(e?.message || "Failed to run");
-      } finally {
-        setIsInteractiveMode(false);
-      }
-    }
-  };
-
-  if (isLoading) {
-    return (
-      <Layout>
-        <div className="flex items-center justify-center h-full py-16">
-          <Loader2 className="w-8 h-8 animate-spin text-primary" />
-        </div>
-      </Layout>
-    );
-  }
 
   return (
     <Layout>
-      <div className="max-w-6xl mx-auto py-8 px-4 grid lg:grid-cols-2 gap-8">
-        <div className="space-y-6">
-          <h1 className="text-2xl font-bold">Interview Challenges</h1>
-          {["Easy", "Medium", "Hard"].map((key) => (
-            <div key={key}>
-              <div className="text-sm font-semibold mb-2">{key}</div>
-              <div className="space-y-2">
-                {groups[key].length === 0 && <div className="text-sm text-muted-foreground">No challenges</div>}
-                {groups[key].map((c) => (
-                  <button
-                    key={c.id}
-                    onClick={() => handleSelect(c)}
-                    className="w-full text-left p-3 rounded-lg border border-border hover:border-primary/50"
-                  >
-                    <div className="font-medium">{c.title}</div>
-                    <div className="text-xs text-muted-foreground">{c.description}</div>
-                  </button>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
+      <h1 className="text-3xl font-display font-bold flex items-center gap-2 mb-2">
+        <Zap className="text-accent" /> Coding Challenges
+      </h1>
+      <p className="text-muted-foreground mb-6">
+        {stats?.totalSolved ?? 0} solved · Practice by category
+      </p>
 
-        <div className="space-y-4">
-          <h2 className="text-xl font-bold">Challenge Runner</h2>
-          {!selected ? (
-            <div className="text-sm text-muted-foreground">Select a challenge to start.</div>
-          ) : (
-            <div className="space-y-4">
-              <div className="p-4 rounded-lg border border-border">
-                <div className="font-semibold">{selected.title}</div>
-                <div className="text-sm text-muted-foreground mt-1">{selected.description}</div>
-              </div>
-              <textarea
-                className="w-full h-64 p-3 rounded-lg border border-border bg-muted"
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
-                spellCheck={false}
-                placeholder="Write your Python code here..."
-              />
-              <div className="flex gap-3">
-                <button
-                  onClick={handleRun}
-                  disabled={run.isPending}
-                  className="px-4 py-2 bg-primary text-primary-foreground rounded-lg disabled:opacity-50"
-                >
-                  {run.isPending ? "Running..." : "Run Code"}
-                </button>
-                {selected.solution_code && (
-                  <button
-                    onClick={() => setShowSolution(!showSolution)}
-                    className="px-4 py-2 border border-border rounded-lg text-sm hover:bg-muted"
-                  >
-                    {showSolution ? "Hide Answer" : "Show Answer"}
-                  </button>
-                )}
-              </div>
-              {showSolution && selected.solution_code && (
-                <div className="p-4 rounded-lg bg-accent/10 border border-accent/20">
-                  <div className="text-sm font-semibold mb-2">Reference Solution</div>
-                  <pre className="text-xs font-mono text-accent whitespace-pre-wrap">{selected.solution_code}</pre>
-                </div>
-              )}
-              
-              {isInteractiveMode ? (
-                <div className="h-[300px] rounded-xl overflow-hidden border border-border/50 shadow-2xl">
-                  <InteractiveConsole 
-                    isWaitingForInput={isWaitingForInput}
-                    onInputSubmit={handleInteractiveInput}
-                    output={interactiveOutput}
-                    error={error || undefined}
-                    isRunning={run.isPending}
-                    prompts={inputCalls.map((c) => c.prompt || "")}
-                    currentPromptIndex={currentInputIndex}
-                  />
-                </div>
-              ) : (
-                <div className="h-[300px] rounded-xl overflow-hidden border border-border/50 shadow-2xl">
-                  <TerminalConsole 
-                    output={output}
-                    error={error || undefined}
-                    isRunning={run.isPending}
-                  />
-                </div>
-              )}
-
-              {/* Test Cases Summary */}
-              {selected.test_cases && Array.isArray(selected.test_cases) && (
-                <div className="p-4 rounded-xl border border-border/40 bg-card/30 backdrop-blur-sm">
-                  <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
-                    <CheckCircle2 className="w-3.5 h-3.5" /> Test Requirements
-                  </div>
-                  <div className="space-y-2">
-                    {selected.test_cases.map((tc: any, i: number) => (
-                      <div key={i} className="flex items-center justify-between text-sm py-1 border-b border-border/20 last:border-0">
-                        <div className="flex items-center gap-2">
-                          <div className="w-1.5 h-1.5 rounded-full bg-primary/40" />
-                          <span className="text-muted-foreground">Input:</span>
-                          <code className="bg-muted px-1.5 py-0.5 rounded text-xs">
-                            {tc.input ? tc.input.replace(/\n/g, ' ↵ ') : "None"}
-                          </code>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-muted-foreground">Expected:</span>
-                          <code className="bg-primary/10 text-primary px-1.5 py-0.5 rounded text-xs font-medium">
-                            {tc.expected}
-                          </code>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+      <div className="grid md:grid-cols-3 gap-4 mb-6">
+        {CATEGORIES.map((cat) => {
+          const s = stats?.byCategory?.[cat];
+          return (
+            <button
+              key={cat}
+              type="button"
+              onClick={() => setCategory(cat)}
+              className="text-left w-full"
+            >
+            <GlassCard
+              className={`p-4 ${category === cat ? "ring-2 ring-primary" : ""}`}
+            >
+              <p className="font-semibold capitalize">{cat}</p>
+              <p className="text-xs text-muted-foreground mb-2">
+                {s?.solved ?? 0}/{s?.total ?? 0} completed
+              </p>
+              <Progress value={s?.percent ?? 0} className="h-1.5" />
+            </GlassCard>
+            </button>
+          );
+        })}
       </div>
+
+      <div className="flex gap-2 mb-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-2.5 w-4 h-4 text-muted-foreground" />
+          <Input
+            className="pl-9"
+            placeholder="Search challenges..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+        <Button variant="outline" size="icon">
+          <Filter className="w-4 h-4" />
+        </Button>
+      </div>
+
+      {isLoading ? (
+        <PageLoader />
+      ) : (
+        <div className="grid lg:grid-cols-3 gap-4">
+          <div className="space-y-2 max-h-[520px] overflow-y-auto">
+            {filtered.map((c) => (
+              <button
+                key={c._id}
+                type="button"
+                onClick={() => {
+                  setSelectedId(c._id);
+                  setCode(c.starterCode);
+                }}
+                className={`w-full text-left p-4 rounded-xl border transition-colors ${
+                  selectedId === c._id || active?._id === c._id
+                    ? "border-primary bg-primary/10"
+                    : "border-border hover:border-primary/30"
+                }`}
+              >
+                <p className="font-medium text-sm">{c.title}</p>
+                <p className="text-xs text-muted-foreground capitalize">
+                  {c.challengeType} · {c.difficulty} · {c.points} pts · ~{c.estimatedMinutes}m
+                </p>
+              </button>
+            ))}
+          </div>
+
+          <GlassCard className="lg:col-span-2 overflow-hidden">
+            {active ? (
+              <>
+                <div className="p-4 border-b">
+                  <h2 className="font-semibold">{active.title}</h2>
+                  <p className="text-sm text-muted-foreground mt-1">{active.description}</p>
+                </div>
+                <Editor
+                  height="300px"
+                  defaultLanguage="python"
+                  theme="vs-dark"
+                  value={code || active.starterCode}
+                  onChange={(v) => setCode(v || "")}
+                />
+                <div className="p-4">
+                  <Button onClick={() => submit.mutate(active._id)} disabled={submit.isPending}>
+                    Submit solution
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <p className="p-8 text-muted-foreground">No challenges in this category</p>
+            )}
+          </GlassCard>
+        </div>
+      )}
+
+      {stats?.recent && stats.recent.length > 0 && (
+        <GlassCard className="p-4 mt-8">
+          <h3 className="font-semibold mb-2">Recently solved</h3>
+          <div className="flex flex-wrap gap-2">
+            {stats.recent.map((c) => (
+              <span key={c._id} className="text-xs px-2 py-1 rounded-full bg-primary/15 text-primary">
+                {c.title}
+              </span>
+            ))}
+          </div>
+        </GlassCard>
+      )}
     </Layout>
   );
 }

@@ -18,8 +18,8 @@ export default function Landing() {
           </div>
           
           <h1 className="text-5xl md:text-7xl font-display font-bold leading-tight mb-8 bg-gradient-to-br from-white via-white/90 to-white/50 bg-clip-text text-transparent animate-in fade-in slide-in-from-bottom-8 duration-700 delay-100">
-            Master Python with <br />
-            <span className="text-primary">Intelligent Feedback</span>
+            Python Edition <br />
+            <span className="text-primary">Adaptive & Interactive Learning</span>
           </h1>
           
           <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-10 animate-in fade-in slide-in-from-bottom-8 duration-700 delay-200">
@@ -29,7 +29,7 @@ export default function Landing() {
           
           <div className="flex flex-col sm:flex-row gap-4 justify-center animate-in fade-in slide-in-from-bottom-8 duration-700 delay-300">
             <button 
-              onClick={() => window.location.href = "/signin"}
+              onClick={() => window.location.href = "/auth"}
               className="px-8 py-4 bg-primary text-primary-foreground font-bold text-lg rounded-xl hover:bg-primary/90 hover:scale-105 transition-all shadow-lg shadow-primary/25 flex items-center justify-center gap-2"
             >
               Start Learning for Free

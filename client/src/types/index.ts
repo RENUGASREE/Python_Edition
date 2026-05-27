@@ -1,73 +1,114 @@
 export interface User {
-  id: number;
-  username: string;
+  id: string;
+  name: string;
   email: string;
-  firstName?: string;
-  lastName?: string;
-  has_taken_quiz: boolean;
-  diagnostic_completed: boolean;
-  masteryVector: Record<string, any>;
-  engagement_score: number;
-  level?: string;
-  is_staff?: boolean;
-  is_superuser?: boolean;
+  role: "student" | "admin";
+  avatar?: string;
+  bio?: string;
+  selectedTrack?: "beginner" | "intermediate" | "advanced";
+  xp?: number;
+  level?: number;
+  streak: number;
+  joinedAt?: string;
+  performance: {
+    totalQuizzes: number;
+    correctAnswers: number;
+    lessonsCompleted: number;
+    timeSpentMinutes: number;
+    skillLevel: "beginner" | "intermediate" | "advanced";
+    weakTopics: string[];
+    strongTopics: string[];
+  };
+  badges: { name: string; earnedAt: string }[];
+  bookmarks: string[];
 }
 
-export interface Module {
-  id: string;
-  title: string;
-  description: string;
-  order: number;
-  imageUrl?: string;
-  quizLocked?: boolean;
-  quizCompleted?: boolean;
+export interface QuizQuestion {
+  question: string;
+  type?: "mcq" | "output" | "fill";
+  options: string[];
+  answer: string;
+  explanation?: string;
+}
+
+export interface CodingChallenge {
+  problemStatement: string;
+  examples: { input: string; output: string }[];
+  constraints: string[];
+  hints: string[];
+  starterCode: string;
+  xpReward: number;
+  timeEstimate: string;
+  difficultyLabel: string;
+  visibleTests?: { input: string; expectedOutput: string }[];
+}
+
+export interface LessonRequirements {
+  challengePassed: boolean;
+  quizPassed: boolean;
+  canComplete: boolean;
+  quizScore: number;
+  quizThreshold: number;
 }
 
 export interface Lesson {
-  id: string;
-  module_id: string;
-  title: string;
-  content: string;
-  order: number;
-  duration: number;
+  _id: string;
   slug: string;
-  difficulty: string;
-}
-
-export interface Quiz {
-  id: string;
-  lesson_id: string;
   title: string;
+  category: "beginner" | "intermediate" | "advanced" | "projects";
+  order: number;
+  difficulty: string;
+  estimated_time: string;
+  objectives: string[];
+  theory: string;
+  real_world_example: string;
+  syntax: string;
+  code_example: string;
+  output_example: string;
+  common_mistakes: string[];
+  tips: string[];
+  exercise: string;
+  codingChallenge?: CodingChallenge;
+  quiz: QuizQuestion[];
+  summary: string;
 }
 
-export interface Question {
-  id: string;
-  quiz_id: string;
-  text: string;
-  type: string;
-  options: any[];
-  points: number;
+export interface LessonMapItem {
+  slug: string;
+  title: string;
+  category: string;
+  order: number;
+  difficulty: string;
+  estimated_time: string;
+  unlocked: boolean;
+  completed: boolean;
+  challengePassed: boolean;
+  quizPassed: boolean;
+  canComplete: boolean;
+  quizScore: number;
+}
+
+export interface Project {
+  _id: string;
+  slug: string;
+  title: string;
+  difficulty: string;
+  description: string;
+  objectives: string[];
+  starterCode: string;
+  hints: string[];
+  estimatedHours: number;
+  tags: string[];
 }
 
 export interface Challenge {
-  id: string;
-  lesson_id: string;
+  _id: string;
   title: string;
+  category?: string;
+  challengeType?: string;
+  difficulty: string;
   description: string;
-  initial_code: string;
-  solution_code: string | null;
-  test_cases: any[];
+  starterCode: string;
   points: number;
-}
-
-export interface UserProgress {
-  id: string;
-  userId: string;
-  lessonId: string;
-  completed: boolean;
-  quizCompleted?: boolean;
-  challengeCompleted?: boolean;
-  score: number;
-  lastCode?: string;
-  completedAt?: string;
+  estimatedMinutes?: number;
 }

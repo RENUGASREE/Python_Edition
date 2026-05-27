@@ -1,95 +1,55 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import type { User } from "@/types";
-import { apiUrl, getAccessToken, getRefreshToken, storeTokens, clearTokens } from "@/lib/api";
+
+export type { User };
+import { apiFetch, getToken, clearTokens, storeTokens } from "@/lib/api";
 
 async function fetchUser(): Promise<User | null> {
-  const accessToken = getAccessToken();
-  const refreshToken = getRefreshToken();
-  
-  if (!accessToken) {
-    return null;
-  }
-
-  const attemptFetch = async (token: string) => {
-    const response = await fetch(apiUrl("/auth/user"), {
-      headers: {
-        'Authorization': `Bearer ${token}`
-      },
-      credentials: "include",
-    });
-    return response;
-  };
-
-  let response = await attemptFetch(accessToken);
-  if (response.status === 401 && refreshToken) {
-    const refreshResponse = await fetch(apiUrl("/token/refresh/"), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ refresh: refreshToken }),
-      credentials: "include",
-    });
-
-    if (refreshResponse.ok) {
-      const data = await refreshResponse.json();
-      if (data?.access) {
-        storeTokens(data.access, data.refresh ?? refreshToken);
-        response = await attemptFetch(data.access);
-      }
-    } else {
-      clearTokens();
-      return null;
-    }
-  }
-
-  if (response.status === 401) {
-    clearTokens();
-    return null;
-  }
-
-  if (!response.ok) {
-    // For other errors, return null instead of throwing to avoid console noise for unauthenticated users
-    return null;
-  }
-
-  return response.json();
-}
-
-async function logout(): Promise<void> {
+  if (!getToken()) return null;
   try {
-    // Call backend to clear server-side session/cookies
-    await fetch(apiUrl("/logout"));
-  } catch (error) {
-    console.error("Logout error:", error);
-  } finally {
-    // Always clear local tokens
+    const { user } = await apiFetch<{ user: User }>("/auth/me");
+    return user;
+  } catch {
     clearTokens();
+    return null;
   }
 }
 
 export function useAuth() {
   const queryClient = useQueryClient();
   const { data: user, isLoading } = useQuery<User | null>({
-    queryKey: ["/api/auth/user"],
+    queryKey: ["auth", "me"],
     queryFn: fetchUser,
     retry: false,
-    staleTime: 0, // Always check for fresh user data (important after quiz)
+    staleTime: 60_000,
     refetchOnWindowFocus: true,
-    refetchOnReconnect: true,
   });
 
   const logoutMutation = useMutation({
-    mutationFn: logout,
+    mutationFn: async () => {
+      try {
+        await apiFetch("/auth/logout", { method: "POST" });
+      } catch {
+        /* clear locally even if API fails */
+      }
+      clearTokens();
+    },
     onSuccess: () => {
-      queryClient.setQueryData(["/api/auth/user"], null);
-      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+      queryClient.setQueryData(["auth", "me"], null);
+      queryClient.clear();
     },
   });
+
+  const setUser = (u: User, token: string, refreshToken?: string) => {
+    storeTokens(token, refreshToken);
+    queryClient.setQueryData(["auth", "me"], u);
+  };
 
   return {
     user,
     isLoading,
     isAuthenticated: !!user,
     logout: logoutMutation.mutate,
-    isLoggingOut: logoutMutation.isPending,
+    setUser,
   };
 }

@@ -1,232 +1,86 @@
-import { Navbar } from "@/components/Navbar";
-import { useAuth } from "@/hooks/use-auth";
-import { Eye, EyeOff, Loader2, LogIn, UserPlus } from "lucide-react";
-import { useEffect, useState } from "react";
-import { useLocation } from "wouter";
+import { useState, useEffect } from "react";
+import { Link, useLocation } from "wouter";
+import { motion } from "framer-motion";
+import { Terminal, Loader2, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { useQueryClient } from "@tanstack/react-query";
-import { apiUrl, clearTokens, storeTokens } from "@/lib/api";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { apiFetch } from "@/lib/api";
+import { useAuth } from "@/hooks/use-auth";
+import type { User } from "@/types";
 
 export default function Login() {
-  const { user, isLoading } = useAuth();
-  const queryClient = useQueryClient();
   const [, setLocation] = useLocation();
-  const [isLoggingIn, setIsLoggingIn] = useState(false);
-  const [mode, setMode] = useState<"login" | "register">("login");
-  const [identifier, setIdentifier] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [username, setUsername] = useState("");
-  const [error, setError] = useState<string | null>(null);
-
-  function isStrongPassword(pw: string) {
-    const minLen = pw.length >= 8;
-    const hasUpper = /[A-Z]/.test(pw);
-    const hasLower = /[a-z]/.test(pw);
-    const hasDigit = /\d/.test(pw);
-    const hasSpecial = /[!@#$%^&*()_\-+=\[\]{}|;:,.<>/?`~]/.test(pw);
-    return minLen && hasUpper && hasLower && hasDigit && hasSpecial;
-  }
+  const { setUser, user } = useAuth();
+  const [loading, setLoading] = useState(false);
+  const [showPw, setShowPw] = useState(false);
+  const [form, setForm] = useState({ email: "", password: "" });
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    if (user) {
-      window.location.href = "/dashboard";
-    }
+    if (user) setLocation("/dashboard");
   }, [user, setLocation]);
 
-  const handleSubmit = async () => {
-    setError(null);
-    if (mode === "register" && password !== confirmPassword) {
-      setError("Passwords do not match.");
-      return;
-    }
-    if (mode === "register" && !isStrongPassword(password)) {
-      return;
-    }
-    setIsLoggingIn(true);
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
     try {
-      const endpoint =
-        mode === "login"
-          ? apiUrl("/auth/login/")
-          : apiUrl("/auth/register/");
-      const body =
-        mode === "login"
-          ? { identifier, password }
-          : { email: identifier, username, password, firstName: firstName || undefined, lastName: lastName || undefined };
-
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 20000);
-      const res = await fetch(endpoint, {
+      const data = await apiFetch<{ token: string; refreshToken?: string; user: User }>("/auth/login", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-        signal: controller.signal,
+        body: JSON.stringify(form),
       });
-      clearTimeout(timeout);
-
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.message || "Invalid credentials");
-      }
-      
-      const data = await res.json();
-      
-      // Store JWT tokens if login/register was successful
-      if (data.access && data.refresh) {
-        storeTokens(data.access, data.refresh);
-
-        // Force refetch user data to update UI immediately
-        await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
-      }
-
-      // Use window.location.href to force a full reload and state reset
-      window.location.href = "/dashboard";
-    } catch (e: any) {
-      clearTokens();
-      const message =
-        e?.name === "AbortError"
-          ? "Request timed out. The backend may be starting up. Please try again."
-          : e?.message || "Failed";
-      setError(message);
+      setUser(data.user, data.token, data.refreshToken);
+      setLocation("/dashboard");
+    } catch (err: unknown) {
+      setError((err as Error).message);
     } finally {
-      setIsLoggingIn(false);
+      setLoading(false);
     }
-  };
-
-  const handleFormSubmit = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    handleSubmit();
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <Navbar />
-      <div className="max-w-md mx-auto py-16 px-4">
-        <Card className="bg-card/60 border-border/60">
-          <CardHeader>
-            <CardTitle className="font-display">
-              {mode === "login" ? "Sign in" : "Create account"}
-            </CardTitle>
-            <CardDescription>
-              {mode === "login" ? "Enter your credentials." : "Register to start learning."}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form className="space-y-4" onSubmit={handleFormSubmit}>
-              {mode === "register" && (
-                <>
-                  <input
-                    type="text"
-                    placeholder="First name"
-                    value={firstName}
-                    onChange={(e) => setFirstName(e.target.value)}
-                    className="w-full px-4 py-3 bg-muted/50 border border-transparent focus:border-primary rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-primary/20"
-                  />
-                  <input
-                    type="text"
-                    placeholder="Last name"
-                    value={lastName}
-                    onChange={(e) => setLastName(e.target.value)}
-                    className="w-full px-4 py-3 bg-muted/50 border border-transparent focus:border-primary rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-primary/20"
-                  />
-                  <input
-                    type="text"
-                    placeholder="Username"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    className="w-full px-4 py-3 bg-muted/50 border border-transparent focus:border-primary rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-primary/20"
-                  />
-                </>
-              )}
-              <input
-                type="text"
-                placeholder={mode === "login" ? "Email or username" : "Email"}
-                value={identifier}
-                onChange={(e) => setIdentifier(e.target.value)}
-                className="w-full px-4 py-3 bg-muted/50 border border-transparent focus:border-primary rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-primary/20"
+    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-background to-primary/5">
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="w-full max-w-md p-8 rounded-2xl border bg-card/70 backdrop-blur-xl shadow-2xl"
+      >
+        <div className="flex items-center gap-2 text-primary font-display font-bold text-2xl mb-6">
+          <Terminal className="w-8 h-8" />
+          Python Edition
+        </div>
+        <h1 className="text-2xl font-bold">Welcome back</h1>
+        <p className="text-muted-foreground text-sm mb-6">Adaptive & Interactive Learning Assistant</p>
+        <form onSubmit={submit} className="space-y-4">
+          <div>
+            <Label>Email</Label>
+            <Input type="email" required value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+          </div>
+          <div>
+            <Label>Password</Label>
+            <div className="relative">
+              <Input
+                type={showPw ? "text" : "password"}
+                required
+                value={form.password}
+                onChange={(e) => setForm({ ...form, password: e.target.value })}
               />
-              <div className="relative">
-                <input
-                  type={showPassword ? "text" : "password"}
-                  placeholder="Password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full px-4 py-3 pr-12 bg-muted/50 border border-transparent focus:border-primary rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-primary/20"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((prev) => !prev)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
-              {mode === "register" && (
-                <div>
-                  <input
-                    type={showPassword ? "text" : "password"}
-                    placeholder="Confirm password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="w-full px-4 py-3 bg-muted/50 border border-transparent focus:border-primary rounded-xl text-sm focus:outline-none focus:ring-1 focus:ring-primary/20"
-                  />
-                </div>
-              )}
-
-              {mode === "register" && (
-                <div className="text-xs text-muted-foreground">
-                  Password must be at least 8 characters and include uppercase, lowercase, a number, and a special character.
-                </div>
-              )}
-
-              {error && <div className="text-sm text-destructive">{error}</div>}
-
-              <Button
-                type="submit"
-                disabled={isLoading || isLoggingIn}
-                className="w-full flex items-center justify-center gap-2"
-              >
-                {isLoggingIn ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : mode === "login" ? (
-                  <LogIn className="w-4 h-4" />
-                ) : (
-                  <UserPlus className="w-4 h-4" />
-                )}
-                <span>{mode === "login" ? "Sign in" : "Create account"}</span>
-              </Button>
-
-              <div className="text-sm text-center pt-2">
-                {mode === "login" ? (
-                  <>
-                    Don’t have an account?{" "}
-                    <button
-                      className="text-primary underline underline-offset-2"
-                      onClick={() => setMode("register")}
-                    >
-                      Create one
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    Already have an account?{" "}
-                    <button
-                      className="text-primary underline underline-offset-2"
-                      onClick={() => setMode("login")}
-                    >
-                      Sign in
-                    </button>
-                  </>
-                )}
-              </div>
-            </form>
-          </CardContent>
-        </Card>
-      </div>
+              <button type="button" className="absolute right-3 top-2.5 text-muted-foreground" onClick={() => setShowPw(!showPw)}>
+                {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+          </div>
+          {error && <p className="text-sm text-destructive">{error}</p>}
+          <Button type="submit" className="w-full" disabled={loading}>
+            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Sign in"}
+          </Button>
+        </form>
+        <div className="flex justify-between text-sm mt-4">
+          <Link href="/auth/forgot" className="text-primary hover:underline">Forgot password?</Link>
+          <Link href="/auth/signup" className="text-primary hover:underline">Create account</Link>
+        </div>
+      </motion.div>
     </div>
   );
 }

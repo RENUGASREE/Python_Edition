@@ -7,9 +7,10 @@
     "node": ">=18.18.0 <23.0.0"
   },
   "scripts": {
-    "dev:backend": "cd backend && .\\venv\\Scripts\\activate && python manage.py runserver",
+    "dev:server": "cd server && npm run dev",
     "dev:frontend": "vite --port 3000",
-    "dev": "concurrently --kill-others-on-fail --names \"Backend,Frontend\" \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev": "concurrently --kill-others-on-fail --names \"API,Frontend\" \"npm run dev:server\" \"npm run dev:frontend\"",
+    "seed": "cd server && npm run seed",
     "build": "vite build",
     "check": "tsc"
   },

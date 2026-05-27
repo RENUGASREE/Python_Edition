@@ -1,187 +1,154 @@
-import { useAuth } from "@/hooks/use-auth";
-import { useUserProgress } from "@/hooks/use-progress";
-import { useModules } from "@/hooks/use-modules";
-import { useMastery } from "@/hooks/use-mastery";
+import { useQuery } from "@tanstack/react-query";
+import { Link } from "wouter";
+import { motion } from "framer-motion";
+import { Flame, BookOpen, Target, Clock, ArrowRight, Sparkles } from "lucide-react";
+import { TrackSelector } from "@/components/TrackSelector";
 import { Layout } from "@/components/Layout";
-import { Loader2, Flame, Award, BookOpen, ChevronRight, CheckCircle2 } from "lucide-react";
-import { Link, useLocation } from "wouter";
-import { useMemo } from "react";
+import { GlassCard } from "@/components/GlassCard";
+import { DashboardSkeleton } from "@/components/PageLoader";
+import { EmptyState } from "@/components/EmptyState";
+import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { useAuth } from "@/hooks/use-auth";
+import { apiFetch } from "@/lib/api";
+import type { Lesson } from "@/types";
 
 export default function Dashboard() {
   const { user } = useAuth();
-  const { data: progress, isLoading: loadingProgress } = useUserProgress();
-  const { data: modules, isLoading: loadingModules } = useModules();
-  const { masteryVector, isLoading: loadingMastery } = useMastery();
-  const [, setLocation] = useLocation();
 
-  const placementCompleted = Boolean(user?.has_taken_quiz || user?.diagnostic_completed);
+  const { data: progress, isLoading: progressLoading } = useQuery({
+    queryKey: ["progress"],
+    queryFn: () =>
+      apiFetch<{
+        stats: {
+          lessonsCompleted: number;
+          totalLessons: number;
+          accuracy: number;
+          streak: number;
+          xp: number;
+          level: number;
+        };
+        levelInfo?: { xpInLevel: number; xpToNext: number };
+      }>("/progress"),
+  });
 
-  const stats = [
-    { label: "Day Streak", value: user?.stats?.streak || 0, icon: Flame, color: "text-orange-500", bg: "bg-orange-500/10" },
-    { label: "Total XP", value: user?.stats?.totalPoints || 0, icon: Award, color: "text-blue-500", bg: "bg-blue-500/10" },
-    { label: "Lessons Done", value: user?.stats?.completedLessons || 0, icon: BookOpen, color: "text-green-500", bg: "bg-green-500/10" },
-  ];
+  const { data: adaptive, isLoading: adaptiveLoading } = useQuery({
+    queryKey: ["adaptive"],
+    queryFn: () =>
+      apiFetch<{
+        continueLearning: Lesson;
+        recommended: Lesson[];
+        revisionTopics: Lesson[];
+      }>("/lessons/adaptive"),
+  });
 
-  const currentModule = useMemo(() => {
-    if (!modules || !progress) return null;
-    const lastIncomplete = progress.find(p => !p.completed);
-    if (lastIncomplete) {
-      return modules.find(m => m.lessons?.some(l => l.id === lastIncomplete.lessonId));
-    }
-    return modules[0];
-  }, [modules, progress]);
-
-  const moduleProgress = useMemo(() => {
-    if (!modules || !progress) return [];
-    return modules.map(m => {
-      const lessons = m.lessons || [];
-      const completed = lessons.filter(l => progress.find(p => p.lessonId === l.id && p.completed)).length;
-      return {
-        ...m,
-        completedCount: completed,
-        totalCount: lessons.length,
-        percent: lessons.length > 0 ? (completed / lessons.length) * 100 : 0
-      };
-    });
-  }, [modules, progress]);
-
-  if (loadingProgress || loadingModules || loadingMastery) {
+  if (progressLoading || adaptiveLoading) {
     return (
       <Layout>
-        <div className="flex items-center justify-center h-[60vh]">
-          <Loader2 className="w-8 h-8 animate-spin text-primary" />
-        </div>
+        <DashboardSkeleton />
       </Layout>
     );
   }
 
+  const stats = progress?.stats;
+  const pct = stats ? Math.round((stats.lessonsCompleted / Math.max(stats.totalLessons, 1)) * 100) : 0;
+
   return (
     <Layout>
-      <div className="space-y-8 max-w-5xl mx-auto">
-        {/* Welcome Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 py-4">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">
-              Welcome back, {user?.firstName || user?.username}! 👋
-            </h1>
-            <p className="text-muted-foreground mt-1 text-lg">
-              You've completed {user?.stats?.completedLessons || 0} lessons so far. Keep it up!
-            </p>
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-8">
+        <div>
+          <h1 className="text-3xl md:text-4xl font-display font-bold">
+            Welcome back, {user?.name?.split(" ")[0]} 👋
+          </h1>
+          <p className="text-muted-foreground mt-1 flex flex-wrap items-center gap-2">
+            <span className="capitalize text-primary">Level {progress?.stats.level ?? user?.level ?? 1}</span>
+            <span>·</span>
+            <Sparkles className="w-4 h-4 text-accent inline" />
+            <span>{progress?.stats.xp ?? user?.xp ?? 0} XP</span>
+            <span>·</span>
+            <span className="capitalize">{user?.selectedTrack || "beginner"} track</span>
+          </p>
+        </div>
+
+        <div className="mb-8">
+          <h2 className="text-lg font-semibold mb-3">Your learning track</h2>
+          <TrackSelector current={user?.selectedTrack} />
+        </div>
+
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {[
+            { label: "Streak", value: stats?.streak ?? user?.streak ?? 0, icon: Flame, color: "text-orange-400" },
+            { label: "Lessons done", value: stats?.lessonsCompleted ?? 0, icon: BookOpen, color: "text-primary" },
+            { label: "Accuracy", value: `${stats?.accuracy ?? 0}%`, icon: Target, color: "text-accent" },
+            { label: "Time (min)", value: user?.performance?.timeSpentMinutes ?? 0, icon: Clock, color: "text-blue-400" },
+          ].map((s, i) => (
+            <GlassCard key={s.label} delay={i * 0.05} className="p-5">
+              <s.icon className={`w-5 h-5 ${s.color} mb-2`} />
+              <p className="text-2xl font-bold">{s.value}</p>
+              <p className="text-sm text-muted-foreground">{s.label}</p>
+            </GlassCard>
+          ))}
+        </div>
+
+        <GlassCard className="p-6">
+          <div className="flex justify-between items-center mb-3">
+            <h2 className="font-semibold">Overall progress</h2>
+            <span className="text-sm text-muted-foreground">{pct}%</span>
           </div>
-          <div className="flex gap-4">
-            {stats.map((stat, i) => (
-              <div key={i} className="bg-card border border-border p-4 rounded-2xl flex items-center gap-4 min-w-[140px]">
-                <div className={`p-2 rounded-lg ${stat.bg} ${stat.color}`}>
-                  <stat.icon className="w-5 h-5" />
-                </div>
-                <div>
-                  <div className="text-2xl font-bold leading-none">{stat.value}</div>
-                  <div className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground mt-1">{stat.label}</div>
-                </div>
-              </div>
+          <Progress value={pct} className="h-2" />
+        </GlassCard>
+
+        {adaptive?.continueLearning && (
+          <GlassCard className="p-6">
+            <h2 className="font-semibold mb-2">Continue learning</h2>
+            <p className="text-muted-foreground text-sm mb-4">{adaptive.continueLearning.title}</p>
+            <Link href={`/lessons/${adaptive.continueLearning.slug}`}>
+              <Button className="gap-2">
+                Resume lesson <ArrowRight className="w-4 h-4" />
+              </Button>
+            </Link>
+          </GlassCard>
+        )}
+
+        <div>
+          <h2 className="text-xl font-semibold mb-4">Recommended for you</h2>
+          {!(adaptive?.recommended?.length) ? (
+            <EmptyState
+              icon={BookOpen}
+              title="No recommendations yet"
+              description="Complete a lesson or take a quiz to unlock personalized suggestions."
+              actionLabel="Browse courses"
+              onAction={() => (window.location.href = "/courses")}
+            />
+          ) : (
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {(adaptive?.recommended || []).slice(0, 6).map((lesson, i) => (
+              <GlassCard key={lesson.slug} delay={i * 0.04} className="p-5 hover:border-primary/30 transition-colors">
+                <span className="text-xs uppercase tracking-wide text-primary">{lesson.category}</span>
+                <h3 className="font-semibold mt-1">{lesson.title}</h3>
+                <p className="text-sm text-muted-foreground mt-1">{lesson.estimated_time}</p>
+                <Link href={`/lessons/${lesson.slug}`}>
+                  <Button variant="outline" size="sm" className="mt-3">Open</Button>
+                </Link>
+              </GlassCard>
             ))}
           </div>
+          )}
         </div>
 
-        {/* Action Banner */}
-        <div className="bg-gradient-to-br from-primary/10 via-background to-background border border-primary/20 rounded-3xl p-8 relative overflow-hidden group">
-          <div className="absolute -right-20 -top-20 w-64 h-64 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
-          
-          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-8">
-            <div className="max-w-xl">
-              <h2 className="text-2xl font-bold mb-3">
-                {!placementCompleted ? "Personalize your path" : "Continue your journey"}
-              </h2>
-              <p className="text-muted-foreground text-lg mb-6 leading-relaxed">
-                {!placementCompleted 
-                  ? "Take our quick assessment to skip what you already know and get a custom curriculum."
-                  : currentModule 
-                    ? `You're currently working on "${currentModule.title}". Pick up right where you left off.`
-                    : "Ready to start your first lesson in Python?"}
-              </p>
-              <Link href={!placementCompleted ? "/placement-quiz" : "/curriculum"}>
-                <button className="px-8 py-4 bg-primary text-primary-foreground font-bold rounded-2xl hover:scale-[1.02] transition-all shadow-xl shadow-primary/20 active:scale-95">
-                  {!placementCompleted ? "Take Placement Quiz" : "Resume Learning"}
-                </button>
-              </Link>
-            </div>
-            {currentModule && (
-              <div className="hidden lg:block bg-card/50 backdrop-blur-sm p-6 rounded-2xl border border-border w-72">
-                <div className="text-xs font-bold uppercase text-primary mb-2">Current Module</div>
-                <div className="font-bold text-lg leading-tight mb-4">{currentModule.title}</div>
-                <div className="space-y-2">
-                  <div className="flex justify-between text-xs font-medium">
-                    <span>Progress</span>
-                    <span>{Math.round(moduleProgress.find(m => m.id === currentModule.id)?.percent || 0)}%</span>
-                  </div>
-                  <Progress value={moduleProgress.find(m => m.id === currentModule.id)?.percent || 0} className="h-2" />
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Modules List */}
-        <div className="grid md:grid-cols-2 gap-8 pt-4">
-          <div className="space-y-6">
-            <div className="flex justify-between items-center">
-              <h3 className="text-xl font-bold">Your Curriculum</h3>
-              <Link href="/curriculum" className="text-sm font-medium text-primary hover:underline">View All</Link>
-            </div>
-            <div className="space-y-3">
-              {moduleProgress.slice(0, 5).map((module) => (
-                <Link key={module.id} href="/curriculum">
-                  <div className="bg-card border border-border p-4 rounded-2xl hover:border-primary/50 transition-all cursor-pointer group flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold border-2 ${module.percent === 100 ? 'bg-primary/10 border-primary text-primary' : 'bg-muted border-transparent text-muted-foreground'}`}>
-                        {module.percent === 100 ? <CheckCircle2 className="w-5 h-5" /> : module.order}
-                      </div>
-                      <div>
-                        <div className="font-bold group-hover:text-primary transition-colors">{module.title}</div>
-                        <div className="text-xs text-muted-foreground mt-0.5">{module.completedCount} / {module.totalCount} Lessons</div>
-                      </div>
-                    </div>
-                    <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:translate-x-1 transition-transform" />
-                  </div>
-                </Link>
+        {adaptive?.revisionTopics && adaptive.revisionTopics.length > 0 && (
+          <GlassCard className="p-6 border-amber-500/20">
+            <h2 className="font-semibold text-amber-400 mb-2">Revision suggested</h2>
+            <ul className="text-sm text-muted-foreground space-y-1">
+              {adaptive.revisionTopics.map((l) => (
+                <li key={l.slug}>
+                  <Link href={`/lessons/${l.slug}`} className="hover:text-primary">{l.title}</Link>
+                </li>
               ))}
-            </div>
-          </div>
-
-          <div className="space-y-6">
-            <h3 className="text-xl font-bold">Mastery Snapshot</h3>
-            <div className="bg-card border border-border p-6 rounded-3xl space-y-6">
-              {Object.entries(masteryVector || {}).slice(0, 4).map(([topic, score]) => (
-                <div key={topic} className="space-y-2">
-                  <div className="flex justify-between text-sm font-medium">
-                    <span className="capitalize">{topic.replace(/_/g, ' ')}</span>
-                    <span className="text-primary">{Math.round(Number(score) * 100)}%</span>
-                  </div>
-                  <Progress value={Number(score) * 100} className="h-1.5" />
-                </div>
-              ))}
-              {Object.keys(masteryVector || {}).length === 0 && (
-                <div className="text-center py-8">
-                  <div className="text-muted-foreground italic text-sm mb-4">No mastery data available yet.</div>
-                  <Link href="/placement-quiz">
-                    <button className="text-primary text-sm font-bold hover:underline">Complete diagnostic test →</button>
-                  </Link>
-                </div>
-              )}
-              {Object.keys(masteryVector || {}).length > 0 && (
-                <div className="pt-4 text-center">
-                  <Link href="/analytics">
-                    <button className="text-xs font-bold text-muted-foreground hover:text-primary transition-colors cursor-pointer">
-                      View full analytics report →
-                    </button>
-                  </Link>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
+            </ul>
+          </GlassCard>
+        )}
+      </motion.div>
     </Layout>
   );
 }
