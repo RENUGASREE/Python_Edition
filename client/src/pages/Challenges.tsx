@@ -10,16 +10,25 @@ import { Progress } from "@/components/ui/progress";
 import { PageLoader } from "@/components/PageLoader";
 import { apiFetch } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
+import { useTheme } from "@/components/ThemeProvider";
 import type { Challenge } from "@/types";
 
 const CATEGORIES = ["beginner", "intermediate", "advanced"] as const;
 
 export default function Challenges() {
   const { toast } = useToast();
+  const { theme } = useTheme();
   const [code, setCode] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [category, setCategory] = useState<string>("beginner");
   const [search, setSearch] = useState("");
+  const [lastResult, setLastResult] = useState<{
+    passed: boolean;
+    score: number;
+    total: number;
+    scorePercent: number;
+    results: { hidden?: boolean; output: string; error: string | null; passed: boolean }[];
+  } | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ["challenges", category],
@@ -52,11 +61,19 @@ export default function Challenges() {
 
   const submit = useMutation({
     mutationFn: (id: string) =>
-      apiFetch<{ passed: boolean; pointsAwarded?: number }>(`/challenges/${id}/submit`, {
+      apiFetch<{
+        passed: boolean;
+        pointsAwarded?: number;
+        score: number;
+        total: number;
+        scorePercent: number;
+        results: { hidden?: boolean; output: string; error: string | null; passed: boolean }[];
+      }>(`/challenges/${id}/submit`, {
         method: "POST",
         body: JSON.stringify({ code }),
       }),
-    onSuccess: (res: { passed: boolean; pointsAwarded?: number }) => {
+    onSuccess: (res) => {
+      setLastResult(res);
       toast({
         title: res.passed ? "Solved!" : "Try again",
         description: res.passed ? `+${res.pointsAwarded || 0} points` : "Check your logic",
@@ -150,7 +167,7 @@ export default function Challenges() {
                 <Editor
                   height="300px"
                   defaultLanguage="python"
-                  theme="vs-dark"
+                  theme={theme === "dark" ? "vs-dark" : "vs"}
                   value={code || active.starterCode}
                   onChange={(v) => setCode(v || "")}
                 />
@@ -158,6 +175,41 @@ export default function Challenges() {
                   <Button onClick={() => submit.mutate(active._id)} disabled={submit.isPending}>
                     Submit solution
                   </Button>
+                  {lastResult && (
+                    <div className="mt-3 text-sm">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className={lastResult.passed ? "text-primary font-medium" : "text-destructive font-medium"}>
+                          {lastResult.passed ? "All tests passed" : "Some tests failed"}
+                        </span>
+                        <span className="text-muted-foreground">
+                          Score: {lastResult.score}/{lastResult.total} ({lastResult.scorePercent}%)
+                        </span>
+                      </div>
+                      <div className="mt-3 space-y-2">
+                        {lastResult.results.map((r, idx) => (
+                          <div
+                            key={idx}
+                            className={`rounded-lg border px-3 py-2 text-xs font-mono whitespace-pre-wrap ${
+                              r.passed ? "border-primary/30 bg-primary/5" : "border-destructive/30 bg-destructive/5"
+                            }`}
+                          >
+                            <div className="flex items-center justify-between gap-2 mb-1 font-sans text-[11px]">
+                              <span className="text-muted-foreground">
+                                Test {idx + 1} {r.hidden ? "(hidden)" : "(visible)"}
+                              </span>
+                              <span className={r.passed ? "text-primary" : "text-destructive"}>
+                                {r.passed ? "PASS" : "FAIL"}
+                              </span>
+                            </div>
+                            {r.error ? <span className="text-destructive">{r.error}</span> : r.output || "(no output)"}
+                          </div>
+                        ))}
+                        <p className="text-xs text-muted-foreground">
+                          Hidden tests help prevent hardcoding. Focus on correct logic for all inputs.
+                        </p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </>
             ) : (

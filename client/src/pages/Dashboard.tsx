@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { motion } from "framer-motion";
-import { Flame, BookOpen, Target, Clock, ArrowRight, Sparkles } from "lucide-react";
+import { Flame, BookOpen, Target, Clock, ArrowRight, Sparkles, TrendingUp } from "lucide-react";
 import { TrackSelector } from "@/components/TrackSelector";
 import { Layout } from "@/components/Layout";
 import { GlassCard } from "@/components/GlassCard";
@@ -52,23 +52,44 @@ export default function Dashboard() {
 
   const stats = progress?.stats;
   const pct = stats ? Math.round((stats.lessonsCompleted / Math.max(stats.totalLessons, 1)) * 100) : 0;
+  const levelInfo = progress?.levelInfo;
+  const levelPct =
+    levelInfo?.xpToNext ? Math.round((levelInfo.xpInLevel / Math.max(levelInfo.xpToNext, 1)) * 100) : 0;
 
   return (
     <Layout>
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-8">
-        <div>
-          <h1 className="text-3xl md:text-4xl font-display font-bold">
-            Welcome back, {user?.name?.split(" ")[0]} 👋
-          </h1>
-          <p className="text-muted-foreground mt-1 flex flex-wrap items-center gap-2">
-            <span className="capitalize text-primary">Level {progress?.stats.level ?? user?.level ?? 1}</span>
-            <span>·</span>
-            <Sparkles className="w-4 h-4 text-accent inline" />
-            <span>{progress?.stats.xp ?? user?.xp ?? 0} XP</span>
-            <span>·</span>
-            <span className="capitalize">{user?.selectedTrack || "beginner"} track</span>
-          </p>
-        </div>
+        <GlassCard className="p-6 md:p-8 relative overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-accent/5 to-transparent pointer-events-none" />
+          <div className="relative">
+            <h1 className="text-3xl md:text-4xl font-display font-bold">
+              Welcome back, {user?.name?.split(" ")[0]}
+            </h1>
+            <p className="text-muted-foreground mt-2 flex flex-wrap items-center gap-2">
+              <span className="capitalize text-primary font-medium">Level {progress?.stats.level ?? user?.level ?? 1}</span>
+              <span className="text-muted-foreground/60">·</span>
+              <Sparkles className="w-4 h-4 text-accent inline" />
+              <span>{progress?.stats.xp ?? user?.xp ?? 0} XP</span>
+              <span className="text-muted-foreground/60">·</span>
+              <span className="capitalize">{user?.selectedTrack || "beginner"} track</span>
+            </p>
+
+            {levelInfo && (
+              <div className="mt-5">
+                <div className="flex items-center justify-between text-sm mb-2">
+                  <span className="text-muted-foreground flex items-center gap-2">
+                    <TrendingUp className="w-4 h-4 text-primary" />
+                    XP to next level
+                  </span>
+                  <span className="text-muted-foreground">
+                    {levelInfo.xpInLevel}/{levelInfo.xpToNext}
+                  </span>
+                </div>
+                <Progress value={levelPct} className="h-2" />
+              </div>
+            )}
+          </div>
+        </GlassCard>
 
         <div className="mb-8">
           <h2 className="text-lg font-semibold mb-3">Your learning track</h2>

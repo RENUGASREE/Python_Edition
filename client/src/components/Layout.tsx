@@ -48,13 +48,17 @@ export function Layout({ children }: LayoutProps) {
 
   return (
     <div className="min-h-screen bg-background flex flex-col md:flex-row">
-      <div className="md:hidden flex items-center justify-between p-4 border-b border-border bg-card/80 backdrop-blur">
+      <div className="md:hidden flex items-center justify-between p-4 border-b border-sidebar-border bg-sidebar/85 backdrop-blur">
         <div className="flex items-center gap-2 font-display font-bold text-xl text-primary">
           <Terminal className="w-6 h-6" />
           <span>Python Edition</span>
         </div>
         <div className="flex gap-2">
-          <button onClick={toggle} className="p-2 rounded-lg hover:bg-muted" aria-label="Toggle theme">
+          <button
+            onClick={toggle}
+            className="p-2 rounded-lg hover:bg-sidebar-accent text-muted-foreground hover:text-foreground"
+            aria-label="Toggle theme"
+          >
             {theme === "dark" ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
           </button>
           <button onClick={() => setOpen(!open)} className="p-2">
@@ -65,7 +69,7 @@ export function Layout({ children }: LayoutProps) {
 
       <aside
         className={cn(
-          "fixed md:sticky top-0 z-40 w-64 h-screen bg-card/80 backdrop-blur-xl border-r border-border transition-transform duration-300",
+          "fixed md:sticky top-0 z-40 w-64 h-screen bg-sidebar/85 text-sidebar-foreground backdrop-blur-xl border-r border-sidebar-border transition-transform duration-300",
           open ? "translate-x-0" : "-translate-x-full md:translate-x-0"
         )}
       >
@@ -94,8 +98,8 @@ export function Layout({ children }: LayoutProps) {
                   className={cn(
                     "flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all",
                     active
-                      ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-lg shadow-primary/15"
+                      : "text-muted-foreground hover:bg-sidebar-accent hover:text-foreground"
                   )}
                 >
                   <Icon className="w-5 h-5" />
@@ -105,9 +109,13 @@ export function Layout({ children }: LayoutProps) {
             })}
           </nav>
 
-          <div className="border-t border-border pt-4 space-y-2">
+          <div className="border-t border-sidebar-border pt-4 space-y-2">
             <div className="hidden md:flex justify-end">
-              <button onClick={toggle} className="p-2 rounded-lg hover:bg-muted text-muted-foreground" aria-label="Toggle theme">
+              <button
+                onClick={toggle}
+                className="p-2 rounded-lg hover:bg-sidebar-accent text-muted-foreground hover:text-foreground"
+                aria-label="Toggle theme"
+              >
                 {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
               </button>
             </div>

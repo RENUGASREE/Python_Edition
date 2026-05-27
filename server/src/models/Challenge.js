@@ -13,7 +13,14 @@ const challengeSchema = new mongoose.Schema(
     estimatedMinutes: { type: Number, default: 15 },
     description: String,
     starterCode: { type: String, default: "# Write your solution here\n" },
-    testCases: [{ input: String, expectedOutput: String }],
+    hints: [{ type: String }],
+    testCases: [
+      {
+        input: { type: String, default: "" },
+        expectedOutput: { type: String, default: "" },
+        hidden: { type: Boolean, default: false },
+      },
+    ],
     points: { type: Number, default: 10 },
     daily: { type: Boolean, default: false },
   },

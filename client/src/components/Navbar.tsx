@@ -26,7 +26,7 @@ export function Navbar() {
       ];
 
   return (
-    <nav className="border-b border-white/5 bg-[#0f1115]/80 backdrop-blur-md sticky top-0 z-50">
+    <nav className="border-b border-border bg-card/70 backdrop-blur-md sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         <div className="flex items-center gap-2 font-display font-bold text-2xl text-primary">
           <Terminal className="w-7 h-7" />
@@ -34,7 +34,7 @@ export function Navbar() {
         </div>
         <div className="flex items-center gap-3">
           <button
-            className="md:hidden p-2 text-muted-foreground hover:text-white"
+            className="md:hidden p-2 text-muted-foreground hover:text-foreground"
             onClick={() => setOpen(!open)}
           >
             {open ? <X /> : <Menu />}
@@ -42,14 +42,15 @@ export function Navbar() {
           <div
             className={cn(
               "hidden md:flex items-center gap-4",
-              open && "absolute top-16 left-0 right-0 bg-[#0f1115] p-4 border-b border-white/10 md:static md:p-0 md:border-0 md:bg-transparent md:flex"
+              open &&
+                "absolute top-16 left-0 right-0 bg-card p-4 border-b border-border md:static md:p-0 md:border-0 md:bg-transparent md:flex"
             )}
           >
             {navItems.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
-                className="px-3 py-2 text-sm font-medium text-muted-foreground hover:text-white transition-colors"
+                className="px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
               >
                 {item.label}
               </Link>
@@ -64,7 +65,7 @@ export function Navbar() {
                         <User className="w-4 h-4 text-muted-foreground" />
                       </AvatarFallback>
                     </Avatar>
-                    <span className="text-sm text-white/80 max-w-[160px] truncate hidden md:block">
+                    <span className="text-sm text-foreground/80 max-w-[160px] truncate hidden md:block">
                       {user.name || "User"}
                     </span>
                   </div>

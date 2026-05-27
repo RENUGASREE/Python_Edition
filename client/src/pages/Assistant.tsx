@@ -7,6 +7,7 @@ import { Layout } from "@/components/Layout";
 import { GlassCard } from "@/components/GlassCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useTheme } from "@/components/ThemeProvider";
 import { apiFetch } from "@/lib/api";
 
 type Mode = "tutor" | "hint" | "debug" | "revision";
@@ -30,8 +31,10 @@ export default function Assistant() {
   const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
   const [mode, setMode] = useState<Mode>("tutor");
+  const [provider, setProvider] = useState<string | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
   const qc = useQueryClient();
+  const { theme } = useTheme();
 
   useQuery({
     queryKey: ["ai-history"],
@@ -44,12 +47,13 @@ export default function Assistant() {
 
   const chat = useMutation({
     mutationFn: (message: string) =>
-      apiFetch<{ reply: string }>("/ai/chat", {
+      apiFetch<{ reply: string; provider?: string; model?: string | null }>("/ai/chat", {
         method: "POST",
         body: JSON.stringify({ message, mode, lessonSlug: new URLSearchParams(window.location.search).get("lesson") }),
       }),
     onSuccess: (res) => {
       setMessages((m) => [...m, { role: "assistant", content: res.reply }]);
+      setProvider(res.provider || null);
       qc.invalidateQueries({ queryKey: ["ai-history"] });
     },
   });
@@ -77,9 +81,16 @@ export default function Assistant() {
         <h1 className="text-3xl font-display font-bold flex items-center gap-2">
           <Bot className="text-primary" /> AI Learning Assistant
         </h1>
-        <Button variant="outline" size="sm" onClick={() => clear.mutate()} className="gap-1">
-          <Trash2 className="w-4 h-4" /> Clear
-        </Button>
+        <div className="flex items-center gap-2">
+          {provider && (
+            <span className="text-xs px-2 py-1 rounded-full border border-border bg-muted/30 text-muted-foreground">
+              {provider === "offline" ? "Offline tutor" : `AI: ${provider}`}
+            </span>
+          )}
+          <Button variant="outline" size="sm" onClick={() => clear.mutate()} className="gap-1">
+            <Trash2 className="w-4 h-4" /> Clear
+          </Button>
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-2 mb-4">
@@ -124,7 +135,9 @@ export default function Assistant() {
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 className={`max-w-[90%] p-3 rounded-2xl text-sm ${
-                  m.role === "user" ? "ml-auto bg-primary text-primary-foreground" : "bg-muted/50 prose prose-invert prose-sm max-w-none"
+                  m.role === "user"
+                    ? "ml-auto bg-primary text-primary-foreground"
+                    : `bg-muted/50 prose prose-sm max-w-none ${theme === "dark" ? "prose-invert" : ""}`
                 }`}
               >
                 {m.role === "assistant" ? <ReactMarkdown>{m.content}</ReactMarkdown> : m.content}

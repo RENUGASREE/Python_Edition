@@ -75,12 +75,35 @@ export async function bootstrapDatabase(options = {}) {
     await Challenge.insertMany(EXPANDED_CHALLENGES);
     report.challenges.added = EXPANDED_CHALLENGES.length;
     console.log(`[bootstrap] Inserted ${EXPANDED_CHALLENGES.length} challenges`);
-  } else if (report.challenges.before < EXPANDED_CHALLENGES.length) {
+  } else {
     for (const c of EXPANDED_CHALLENGES) {
       const exists = await Challenge.findOne({ title: c.title, category: c.category });
       if (!exists) {
         await Challenge.create(c);
         report.challenges.added += 1;
+      } else {
+        // Backfill/upgrade challenges safely without changing solved state.
+        // Only enrich missing fields / expand tests; never deletes.
+        let changed = false;
+        if (!exists.description && c.description) {
+          exists.description = c.description;
+          changed = true;
+        }
+        if ((!exists.hints || exists.hints.length === 0) && c.hints?.length) {
+          exists.hints = c.hints;
+          changed = true;
+        }
+        if ((!exists.starterCode || exists.starterCode.trim() === "# Write your solution here") && c.starterCode) {
+          exists.starterCode = c.starterCode;
+          changed = true;
+        }
+        const existingTcCount = exists.testCases?.length || 0;
+        const newTcCount = c.testCases?.length || 0;
+        if (newTcCount > existingTcCount) {
+          exists.testCases = c.testCases;
+          changed = true;
+        }
+        if (changed) await exists.save();
       }
     }
     if (report.challenges.added) {

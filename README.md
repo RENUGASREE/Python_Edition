@@ -1,72 +1,101 @@
-# Python Edition: Adaptive & Interactive Learning Assistant 🐍
+# Python Edition – Adaptive & Interactive Learning Assistant
 
-A premium, AI-enhanced adaptive learning platform designed to take users from Python basics to professional mastery. The platform features a sophisticated recommendation engine, real-time code execution, and high-fidelity analytics.
+A modern, AI-powered Python learning platform with structured lessons, quizzes, an interactive compiler, adaptive recommendations, progress analytics, projects, challenges, and a leaderboard.
 
----
-
-## 🚀 Key Features
-
-### 🧠 Adaptive Learning Engine
-- **Diagnostic Placement**: A comprehensive 15-question quiz to assess baseline knowledge across 6 core modules.
-- **Mastery-Based Progression**: Intelligent backend logic that tracks proficiency (0.0 – 1.0) and unlocks content dynamically.
-- **Personalized Recommendations**: Automatic difficulty adjustment (Beginner, Intermediate, Pro) for every module based on user performance.
-
-### 📚 Professional Curriculum
-- **60 Deep-Dive Topics**: Covering everything from Variable Scope to Decorators and Context Managers.
-- **180+ Lessons**: Each topic contains progressive lessons (Objective, Concept, Example, Takeaway).
-- **Interactive Challenges**: 60 integrated coding challenges with an auto-grading sandbox.
-
-### 📊 Performance Analytics
-- **Topic Proficiency Radar**: Visual mastery breakdown across the curriculum.
-- **Real-time Progress Tracking**: Granular tracking of lesson completion and quiz scores.
-- **Mastery Vector Visualization**: Deep insights into the learner's knowledge profile.
-
-### 🛠️ Developer Suite
-- **Interactive IDE**: Integrated code editor with instant feedback and error diagnostics.
-- **RAG-Powered Chatbot**: AI assistant trained on the curriculum for context-aware help.
-
----
-
-## 🛠️ Tech Stack
+## Tech Stack
 
 | Layer | Technologies |
 |-------|-------------|
-| **Frontend** | React 18, Vite, Tailwind CSS, Framer Motion, Recharts |
-| **Backend** | Django 5.0, Django REST Framework, PostgreSQL |
-| **AI / ML** | OpenAI GPT-4o (via RAG) for intelligent tutoring |
-| **Execution** | Isolated sandbox for secure Python code evaluation |
+| **Frontend** | React 18, Vite, Tailwind CSS, Framer Motion, Recharts, Monaco Editor |
+| **Backend** | Node.js, Express |
+| **Database** | MongoDB |
+| **Auth** | JWT |
 
----
-
-## 📦 Project Structure
+## Project Structure
 
 ```
 Python_Edition/
-├── backend/            # Django core, adaptive logic, and curriculum data
-│   ├── ai_engine/      # RAG-powered AI tutoring engine
-│   ├── analytics/      # Performance tracking and analytics
-│   ├── assessments/    # Quizzes, placement tests, and challenges
-│   ├── core/           # Shared models and utilities
-│   ├── evaluation/     # Adaptive recommendation engine
-│   ├── gamification/   # Badges, streaks, and rewards
-│   ├── lessons/        # Lesson content management
-│   ├── recommendation/ # Personalized learning path suggestions
-│   └── users/          # User authentication and profiles
-├── client/             # React frontend application
-│   ├── public/         # Static assets
-│   └── src/            # Components, pages, hooks, and state management
+├── client/                 # React frontend
+│   └── src/
+│       ├── pages/          # Dashboard, courses, lessons, compiler, etc.
+│       ├── components/     # Layout, glass cards, theme provider
+│       └── lib/            # API client
+├── server/                 # Express API
+│   └── src/
+│       ├── models/         # User, Lesson, Progress, Project, Challenge
+│       ├── routes/         # REST API routes
+│       └── seed/           # Curriculum seed data (36+ lessons)
+└── package.json            # Root scripts (dev, build, seed)
 ```
 
----
-
-## 🏁 Prerequisites
+## Prerequisites
 
 - **Node.js** 18+
-- **Python** 3.12+
-- **PostgreSQL**
+- **MongoDB** (local or Atlas)
+- **Python 3** (for code execution in the compiler)
 
----
+## Quick Start
 
-## 📄 License
+### 1. Install dependencies
 
-This project is licensed under the MIT License.
+```bash
+npm install
+cd server && npm install
+```
+
+### 2. Configure environment
+
+```bash
+cp server/.env.example server/.env
+```
+
+Edit `server/.env` with your MongoDB URI and JWT secret.
+
+### 3. Seed the database
+
+```bash
+npm run seed
+```
+
+This loads **36 lessons** (beginner, intermediate, advanced, projects), **6 projects**, **3 challenges**, and an admin user:
+
+- Email: `admin@pythonedition.com`
+- Password: `admin123`
+
+### 4. Run the app
+
+```bash
+npm run dev
+```
+
+- Frontend: http://localhost:3000
+- API: http://localhost:5000
+
+## Features
+
+- **Authentication** — Sign up, login, forgot/reset password, JWT, profile
+- **Dashboard** — Streak, progress, continue learning, adaptive recommendations
+- **Courses** — Beginner, Intermediate, Advanced, Projects
+- **Lessons** — Theory, syntax, examples, exercises, quizzes, bookmarks, voice hints, notes download
+- **Compiler** — Monaco editor, run Python, save snippets
+- **Adaptive learning** — Performance tracking, easier/harder suggestions, revision topics
+- **Progress** — Charts, badges, category breakdown
+- **Projects** — Calculator, To-Do, Weather, Chatbot, Expense Tracker, AI mini projects
+- **Challenges & leaderboard** — Daily tasks, points
+- **AI assistant** — In-app Python tutor chat
+- **Admin panel** — User and content analytics
+
+## API Overview
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/auth/register` | Create account |
+| POST | `/api/auth/login` | Login |
+| GET | `/api/lessons` | List lessons |
+| GET | `/api/lessons/adaptive` | Personalized recommendations |
+| POST | `/api/compiler/run` | Execute Python code |
+| GET | `/api/progress` | User analytics |
+
+## License
+
+MIT

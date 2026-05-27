@@ -71,7 +71,14 @@ router.post(
       const { output, error } = await runPythonTestCase(code, tc.input || "");
       const ok = !error && output.trim() === (tc.expectedOutput || "").trim();
       if (ok) passed++;
-      results.push({ input: tc.input, expected: tc.expectedOutput, output, error, passed: ok });
+      results.push({
+        input: tc.hidden ? undefined : tc.input,
+        expected: tc.hidden ? undefined : tc.expectedOutput,
+        hidden: !!tc.hidden,
+        output,
+        error,
+        passed: ok,
+      });
     }
 
     const allPassed = passed === challenge.testCases.length;
@@ -98,6 +105,7 @@ router.post(
       results,
       score: passed,
       total: challenge.testCases.length,
+      scorePercent: challenge.testCases.length ? Math.round((passed / challenge.testCases.length) * 100) : 0,
       pointsAwarded,
       alreadySolved,
     });

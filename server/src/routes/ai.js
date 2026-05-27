@@ -4,6 +4,7 @@ import Progress from "../models/Progress.js";
 import ChatMessage from "../models/ChatMessage.js";
 import { protect } from "../middleware/auth.js";
 import { asyncHandler } from "../middleware/asyncHandler.js";
+import { chatCompletion, isLlmEnabled } from "../utils/llm.js";
 
 const router = Router();
 
@@ -89,12 +90,74 @@ router.post(
       progress = await Progress.findOne({ user: req.user._id, lesson: lesson?._id });
     }
 
-    const reply = buildReply(message, { lesson, mode, user: req.user, progress });
+    let reply = "";
+    let provider = "offline";
+    let model = null;
+
+    if (isLlmEnabled()) {
+      const history = await ChatMessage.find({ user: req.user._id, lessonSlug: lessonSlug || null })
+        .sort({ createdAt: -1 })
+        .limit(12);
+
+      const system = [
+        "You are Python Edition's AI tutor.",
+        "Be concise, kind, and accurate.",
+        "Prefer guiding questions and small steps over full solutions.",
+        "If mode is 'hint', give a minimal hint (no full solution).",
+        "If mode is 'debug', explain the likely error cause and propose 2-4 concrete fixes.",
+        "If mode is 'revision', give a short plan: what to review + 2 practice actions.",
+        "When code is provided, review it and point out mistakes or improvements.",
+      ].join(" ");
+
+      const contextLines = [];
+      if (lesson) {
+        contextLines.push(`Lesson: ${lesson.title} (${lesson.difficulty}).`);
+        if (lesson.summary) contextLines.push(`Summary: ${lesson.summary}`);
+        if (lesson.objectives?.length) contextLines.push(`Objectives: ${lesson.objectives.join(" | ")}`);
+        if (lesson.codingChallenge?.problemStatement)
+          contextLines.push(`Challenge: ${lesson.codingChallenge.problemStatement}`);
+      }
+      if (progress) {
+        contextLines.push(`Progress: challengePassed=${!!progress.challengePassed}, quizPassed=${!!progress.quizPassed}.`);
+      }
+      contextLines.push(`User skill: ${req.user?.performance?.skillLevel || "beginner"}.`);
+      contextLines.push(`Mode: ${mode}.`);
+
+      const messages = [
+        { role: "system", content: system },
+        { role: "system", content: contextLines.join("\n") },
+        ...history
+          .reverse()
+          .map((m) => ({ role: m.role === "assistant" ? "assistant" : "user", content: m.content })),
+        { role: "user", content: message },
+      ];
+
+      try {
+        const out = await chatCompletion({ messages });
+        reply = out.text?.trim() || "";
+        provider = out.provider;
+        model = out.model;
+      } catch (e) {
+        // fall back to offline tutor
+        reply = "";
+      }
+    }
+
+    if (!reply) {
+      reply = buildReply(message, { lesson, mode, user: req.user, progress });
+    }
 
     await ChatMessage.create({ user: req.user._id, role: "user", content: message, mode, lessonSlug });
     await ChatMessage.create({ user: req.user._id, role: "assistant", content: reply, mode, lessonSlug });
 
-    res.json({ reply, lessonTitle: lesson?.title, mode, timestamp: new Date().toISOString() });
+    res.json({
+      reply,
+      lessonTitle: lesson?.title,
+      mode,
+      provider,
+      model,
+      timestamp: new Date().toISOString(),
+    });
   })
 );
 

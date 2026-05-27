@@ -17,8 +17,10 @@ import { GlassCard } from "@/components/GlassCard";
 import { PageLoader } from "@/components/PageLoader";
 import { apiFetch } from "@/lib/api";
 import { Award, Flame, Sparkles, Target } from "lucide-react";
+import { useTheme } from "@/components/ThemeProvider";
 
 export default function ProgressPage() {
+  const { theme } = useTheme();
   const { data, isLoading } = useQuery({
     queryKey: ["progress"],
     queryFn: () => apiFetch<Record<string, unknown>>("/progress"),
@@ -38,6 +40,15 @@ export default function ProgressPage() {
   const challengeWeekly = (data?.challengeWeekly as { day: string; passed: number }[]) || [];
   const accuracyTrend = (data?.accuracyTrend as { index: number; title: string; score: number }[]) || [];
   const topicTime = (data?.topicTime as { topic: string; minutes: number }[]) || [];
+  const tooltipStyle = {
+    background: "hsl(var(--popover))",
+    border: "1px solid hsl(var(--border))",
+    borderRadius: "12px",
+    color: "hsl(var(--popover-foreground))",
+    boxShadow: theme === "dark" ? "0 16px 40px rgba(0,0,0,0.45)" : "0 16px 40px rgba(2,6,23,0.12)",
+  } as const;
+  const gridStroke = "hsl(var(--border) / 0.6)";
+  const axisStroke = "hsl(var(--muted-foreground))";
 
   return (
     <Layout>
@@ -56,12 +67,12 @@ export default function ProgressPage() {
           <h2 className="font-semibold mb-4">Weekly activity</h2>
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={weekly}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-              <XAxis dataKey="day" stroke="#888" fontSize={12} />
-              <YAxis stroke="#888" fontSize={12} />
-              <Tooltip contentStyle={{ background: "#1e293b", border: "none" }} />
-              <Bar dataKey="activity" fill="#22c55e" name="Actions" radius={[6, 6, 0, 0]} />
-              <Bar dataKey="lessons" fill="#3b82f6" name="Completed" radius={[6, 6, 0, 0]} />
+              <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
+              <XAxis dataKey="day" stroke={axisStroke} fontSize={12} tickLine={false} axisLine={false} />
+              <YAxis stroke={axisStroke} fontSize={12} tickLine={false} axisLine={false} />
+              <Tooltip contentStyle={tooltipStyle} />
+              <Bar dataKey="activity" fill="hsl(var(--chart-1))" name="Actions" radius={[8, 8, 0, 0]} />
+              <Bar dataKey="lessons" fill="hsl(var(--chart-3))" name="Completed" radius={[8, 8, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </GlassCard>
@@ -70,11 +81,17 @@ export default function ProgressPage() {
           <h2 className="font-semibold mb-4">Challenge completions</h2>
           <ResponsiveContainer width="100%" height={220}>
             <AreaChart data={challengeWeekly}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-              <XAxis dataKey="day" stroke="#888" fontSize={12} />
-              <YAxis stroke="#888" fontSize={12} />
-              <Tooltip contentStyle={{ background: "#1e293b", border: "none" }} />
-              <Area type="monotone" dataKey="passed" stroke="#f59e0b" fill="#f59e0b33" />
+              <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
+              <XAxis dataKey="day" stroke={axisStroke} fontSize={12} tickLine={false} axisLine={false} />
+              <YAxis stroke={axisStroke} fontSize={12} tickLine={false} axisLine={false} />
+              <Tooltip contentStyle={tooltipStyle} />
+              <Area
+                type="monotone"
+                dataKey="passed"
+                stroke="hsl(var(--chart-2))"
+                fill="hsl(var(--chart-2) / 0.25)"
+                strokeWidth={2}
+              />
             </AreaChart>
           </ResponsiveContainer>
         </GlassCard>
@@ -85,11 +102,17 @@ export default function ProgressPage() {
           <h2 className="font-semibold mb-4">Quiz accuracy trend</h2>
           <ResponsiveContainer width="100%" height={220}>
             <LineChart data={accuracyTrend}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-              <XAxis dataKey="title" stroke="#888" fontSize={10} />
-              <YAxis domain={[0, 100]} stroke="#888" fontSize={12} />
-              <Tooltip contentStyle={{ background: "#1e293b", border: "none" }} />
-              <Line type="monotone" dataKey="score" stroke="#a855f7" strokeWidth={2} dot />
+              <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
+              <XAxis dataKey="title" stroke={axisStroke} fontSize={10} tickLine={false} axisLine={false} />
+              <YAxis domain={[0, 100]} stroke={axisStroke} fontSize={12} tickLine={false} axisLine={false} />
+              <Tooltip contentStyle={tooltipStyle} />
+              <Line
+                type="monotone"
+                dataKey="score"
+                stroke="hsl(var(--chart-4))"
+                strokeWidth={2.5}
+                dot={{ r: 3, strokeWidth: 2, stroke: "hsl(var(--chart-4))", fill: "hsl(var(--background))" }}
+              />
             </LineChart>
           </ResponsiveContainer>
         </GlassCard>
@@ -98,10 +121,10 @@ export default function ProgressPage() {
           <h2 className="font-semibold mb-4">Time by topic</h2>
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={topicTime} layout="vertical">
-              <XAxis type="number" stroke="#888" fontSize={12} />
-              <YAxis dataKey="topic" type="category" width={80} stroke="#888" fontSize={11} />
-              <Tooltip contentStyle={{ background: "#1e293b", border: "none" }} />
-              <Bar dataKey="minutes" fill="#22c55e" radius={[0, 6, 6, 0]} />
+              <XAxis type="number" stroke={axisStroke} fontSize={12} tickLine={false} axisLine={false} />
+              <YAxis dataKey="topic" type="category" width={80} stroke={axisStroke} fontSize={11} tickLine={false} axisLine={false} />
+              <Tooltip contentStyle={tooltipStyle} />
+              <Bar dataKey="minutes" fill="hsl(var(--chart-1))" radius={[0, 8, 8, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </GlassCard>
@@ -109,14 +132,36 @@ export default function ProgressPage() {
 
       <GlassCard className="p-6">
         <h2 className="font-semibold mb-4">Learning heatmap (28 days)</h2>
+        <div className="flex items-center justify-between flex-wrap gap-3 mb-3">
+          <p className="text-xs text-muted-foreground">
+            Hover a cell to see activity count. More activity → stronger color.
+          </p>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <span>Less</span>
+            {[0, 1, 2, 3, 4].map((i) => (
+              <span
+                key={i}
+                className="inline-block w-3 h-3 rounded-sm border border-border/60"
+                style={{
+                  backgroundColor:
+                    i === 0 ? "hsl(var(--muted))" : `hsl(var(--chart-1) / ${Math.min(1, 0.18 + i * 0.18)})`,
+                }}
+              />
+            ))}
+            <span>More</span>
+          </div>
+        </div>
         <div className="flex flex-wrap gap-1">
           {heatmap.map((d) => (
             <div
               key={d.date}
+              role="img"
+              aria-label={`${d.date}: ${d.count} activities`}
               title={`${d.date}: ${d.count} activities`}
-              className="w-3 h-3 rounded-sm"
+              className="w-3.5 h-3.5 rounded-sm border border-border/40"
               style={{
-                backgroundColor: d.count === 0 ? "hsl(var(--muted))" : `rgba(34, 197, 94, ${Math.min(1, 0.2 + d.count * 0.2)})`,
+                backgroundColor:
+                  d.count === 0 ? "hsl(var(--muted))" : `hsl(var(--chart-1) / ${Math.min(1, 0.18 + d.count * 0.18)})`,
               }}
             />
           ))}

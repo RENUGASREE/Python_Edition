@@ -109,6 +109,7 @@ export interface Challenge {
   difficulty: string;
   description: string;
   starterCode: string;
+  hints?: string[];
   points: number;
   estimatedMinutes?: number;
 }
