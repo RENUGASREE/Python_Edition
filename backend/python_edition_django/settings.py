@@ -60,13 +60,6 @@ INSTALLED_APPS = [
     'corsheaders',
     'core',
     'users',
-    'lessons.apps.LessonsConfig',
-    'assessments',
-    'ai_engine',
-    'recommendation',
-    'analytics',
-    'gamification',
-    'evaluation',
     # 'django_q',
     'rest_framework_simplejwt',
 ]
