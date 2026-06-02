@@ -17,10 +17,8 @@ import { GlassCard } from "@/components/GlassCard";
 import { PageLoader } from "@/components/PageLoader";
 import { apiFetch } from "@/lib/api";
 import { Award, Flame, Sparkles, Target } from "lucide-react";
-import { useTheme } from "@/components/ThemeProvider";
 
 export default function ProgressPage() {
-  const { theme } = useTheme();
   const { data, isLoading } = useQuery({
     queryKey: ["progress"],
     queryFn: () => apiFetch<Record<string, unknown>>("/progress"),

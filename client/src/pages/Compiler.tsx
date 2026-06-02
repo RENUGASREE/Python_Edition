@@ -1,37 +1,17 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import Editor from "@monaco-editor/react";
-import { Play, Save, Loader2, Terminal, Trash2 } from "lucide-react";
+import { Save, Terminal } from "lucide-react";
 import { Layout } from "@/components/Layout";
 import { GlassCard } from "@/components/GlassCard";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { useTheme } from "@/components/ThemeProvider";
+import InteractiveTerminal from "@/components/InteractiveTerminal";
 import { apiFetch } from "@/lib/api";
 
-const DEFAULT_CODE = '# Welcome to Python Edition Compiler\nprint("Hello, World!")\n';
-const DEFAULT_INPUT = "Alice\n21\n";
+const DEFAULT_CODE = '# Welcome to Python Edition Compiler\nname = input("Enter your name: ")\nprint(f"Hello, {name}!")\n';
 
 export default function Compiler() {
-  const { theme } = useTheme();
   const [code, setCode] = useState(DEFAULT_CODE);
-  const [stdin, setStdin] = useState(DEFAULT_INPUT);
-  const [output, setOutput] = useState("");
-  const [error, setError] = useState("");
-
-  const monacoTheme = useMemo(() => (theme === "dark" ? "vs-dark" : "vs"), [theme]);
-
-  const run = useMutation({
-    mutationFn: () =>
-      apiFetch<{ output: string; error: string | null }>("/compiler/run", {
-        method: "POST",
-        body: JSON.stringify({ code, stdin }),
-      }),
-    onSuccess: (res) => {
-      setOutput(res.output);
-      setError(res.error || "");
-    },
-  });
 
   const { data: saved } = useQuery({
     queryKey: ["saved-code"],
@@ -54,33 +34,21 @@ export default function Compiler() {
       </p>
 
       <div className="grid xl:grid-cols-[1fr_420px] gap-4">
-        <GlassCard className="overflow-hidden">
-          <div className="flex flex-wrap items-center gap-2 p-3 border-b border-border">
-            <Button size="sm" onClick={() => run.mutate()} disabled={run.isPending} className="gap-1">
-              {run.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
-              {run.isPending ? "Running..." : "Run"}
-            </Button>
+        <GlassCard className="overflow-hidden h-[580px] flex flex-col">
+          <div className="flex flex-wrap items-center justify-between p-3 border-b border-border">
+            <div className="flex items-center gap-2">
+              <Terminal className="w-4 h-4 text-primary" />
+              <span className="font-semibold text-sm">Editor</span>
+            </div>
             <Button size="sm" variant="outline" onClick={() => save.mutate()} className="gap-1">
               <Save className="w-4 h-4" /> Save
             </Button>
-            <Button
-              size="sm"
-              variant="ghost"
-              className="gap-1 text-muted-foreground hover:text-foreground"
-              onClick={() => {
-                setOutput("");
-                setError("");
-              }}
-              type="button"
-            >
-              <Trash2 className="w-4 h-4" />
-              Clear output
-            </Button>
           </div>
-          <Editor
-            height="520px"
-            defaultLanguage="python"
-            theme={monacoTheme}
+          <div className="flex-1">
+            <Editor
+              height="100%"
+              defaultLanguage="python"
+              theme="vs-dark"
             value={code}
             onChange={(v) => setCode(v || "")}
             options={{
@@ -89,47 +57,11 @@ export default function Compiler() {
               scrollBeyondLastLine: false,
             }}
           />
+          </div>
         </GlassCard>
 
-        <div className="space-y-4">
-          <GlassCard className="p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <Terminal className="w-4 h-4 text-muted-foreground" />
-              <h2 className="font-semibold">Provide Input (stdin)</h2>
-            </div>
-            <p className="text-xs text-muted-foreground mb-3">
-              Each line here becomes one <code className="font-mono">input()</code>. Example: name then age on next line.
-            </p>
-            <Textarea
-              value={stdin}
-              onChange={(e) => setStdin(e.target.value)}
-              placeholder={"Alice\n21\n"}
-              className="min-h-[140px] font-mono text-sm"
-            />
-            <div className="flex justify-end mt-2">
-              <Button size="sm" variant="outline" onClick={() => setStdin("")} type="button">
-                Clear input
-              </Button>
-            </div>
-          </GlassCard>
-
-          <GlassCard className="p-4">
-            <h2 className="font-semibold mb-2">Console</h2>
-            <div className="rounded-xl border border-border bg-card/40 overflow-hidden">
-              <div className="px-3 py-2 border-b border-border bg-muted/30 text-xs text-muted-foreground font-mono">
-                {run.isPending ? "running…" : error ? "stderr" : "stdout"}
-              </div>
-              <pre className="p-4 text-sm font-mono min-h-[220px] whitespace-pre-wrap leading-relaxed">
-                {error ? (
-                  <span className="text-destructive">{error}</span>
-                ) : output ? (
-                  output
-                ) : (
-                  <span className="text-muted-foreground">Run code to see output…</span>
-                )}
-              </pre>
-            </div>
-          </GlassCard>
+        <div className="h-[580px]">
+          <InteractiveTerminal code={code} />
         </div>
       </div>
 

@@ -3,6 +3,8 @@ import express from "express";
 import cors from "cors";
 import morgan from "morgan";
 import mongoose from "mongoose";
+import http from "http";
+import { WebSocketServer } from "ws";
 
 import { connectDB, isDbConnected } from "./config/db.js";
 import { bootstrapDatabase } from "./seed/bootstrap.js";
@@ -16,8 +18,15 @@ import leaderboardRoutes from "./routes/leaderboard.js";
 import adminRoutes from "./routes/admin.js";
 import aiRoutes from "./routes/ai.js";
 import profileRoutes from "./routes/profile.js";
+import { setupCompilerWs } from "./routes/compilerWs.js";
 
 const app = express();
+const server = http.createServer(app);
+
+// Setup WebSocket Server for Compiler
+const wss = new WebSocketServer({ server });
+setupCompilerWs(wss);
+
 const PORT = process.env.PORT || 5000;
 const isProd = process.env.NODE_ENV === "production";
 
@@ -103,7 +112,7 @@ async function start() {
       console.log("[startup] AUTO_SEED_ON_STARTUP=false — skipping bootstrap");
     }
 
-    app.listen(PORT, "0.0.0.0", () => {
+    server.listen(PORT, "0.0.0.0", () => {
       console.log(`Python Edition API listening on port ${PORT} (${isProd ? "production" : "development"})`);
     });
   } catch (err) {

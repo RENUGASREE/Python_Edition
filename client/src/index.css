@@ -4,59 +4,9 @@
 @tailwind components;
 @tailwind utilities;
 
-.light {
-  /* Light — crisp, high-contrast, premium */
-  --background: 210 40% 98%;
-  --foreground: 222 47% 11%;
 
-  --card: 0 0% 100%;
-  --card-foreground: 222 47% 11%;
-  --card-border: 214 32% 90%;
 
-  --popover: 0 0% 100%;
-  --popover-foreground: 222 47% 11%;
-  --popover-border: 214 32% 90%;
-
-  --primary: 142 72% 38%;
-  --primary-foreground: 0 0% 100%;
-
-  --secondary: 210 40% 96%;
-  --secondary-foreground: 222 47% 11%;
-
-  --muted: 210 40% 96%;
-  --muted-foreground: 215 16% 42%;
-
-  --accent: 45 93% 47%;
-  --accent-foreground: 222 47% 11%;
-
-  --destructive: 0 84% 60%;
-  --destructive-foreground: 0 0% 100%;
-
-  --border: 214 32% 90%;
-  --input: 214 32% 90%;
-  --ring: 142 72% 38%;
-
-  /* Sidebar */
-  --sidebar: 0 0% 100%;
-  --sidebar-foreground: 222 47% 11%;
-  --sidebar-border: 214 32% 90%;
-  --sidebar-ring: 142 72% 38%;
-
-  --sidebar-primary: 142 72% 38%;
-  --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 210 40% 96%;
-  --sidebar-accent-foreground: 222 47% 11%;
-
-  /* Charts (Recharts / shadcn chart) */
-  --chart-1: 142 72% 38%;
-  --chart-2: 45 93% 47%;
-  --chart-3: 199 89% 48%;
-  --chart-4: 262 83% 58%;
-  --chart-5: 0 84% 60%;
-}
-
-:root,
-.dark {
+:root {
   /* Modern Python-inspired Palette */
   --background: 222 47% 11%;     /* Dark Blue-Gray */
   --foreground: 210 40% 98%;     /* Off-white */

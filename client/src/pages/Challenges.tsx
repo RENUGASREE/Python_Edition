@@ -10,14 +10,13 @@ import { Progress } from "@/components/ui/progress";
 import { PageLoader } from "@/components/PageLoader";
 import { apiFetch } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
-import { useTheme } from "@/components/ThemeProvider";
+import InteractiveTerminal from "@/components/InteractiveTerminal";
 import type { Challenge } from "@/types";
 
 const CATEGORIES = ["beginner", "intermediate", "advanced"] as const;
 
 export default function Challenges() {
   const { toast } = useToast();
-  const { theme } = useTheme();
   const [code, setCode] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [category, setCategory] = useState<string>("beginner");
@@ -167,10 +166,13 @@ export default function Challenges() {
                 <Editor
                   height="300px"
                   defaultLanguage="python"
-                  theme={theme === "dark" ? "vs-dark" : "vs"}
+                  theme="vs-dark"
                   value={code || active.starterCode}
                   onChange={(v) => setCode(v || "")}
                 />
+                <div className="h-64 border-y border-border">
+                  <InteractiveTerminal code={code || active.starterCode} />
+                </div>
                 <div className="p-4">
                   <Button onClick={() => submit.mutate(active._id)} disabled={submit.isPending}>
                     Submit solution
