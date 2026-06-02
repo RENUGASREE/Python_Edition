@@ -158,12 +158,14 @@ export default function Assistant() {
               <span className="truncate" title={aiStatus.probe?.error}>
                 {aiStatus.probe?.error?.includes("401") || aiStatus.probe?.error?.includes("User not found")
                   ? "Invalid OpenRouter key — create new key at openrouter.ai/keys, redeploy API"
-                  : `AI failed — ${aiStatus.probe?.error?.slice(0, 100) || "check model/credits"}`}
+                  : aiStatus.probe?.error?.includes("404")
+                    ? "Model not found — set AI_MODEL=meta-llama/llama-3.2-3b-instruct:free on API, redeploy"
+                    : `AI failed — ${aiStatus.probe?.error?.slice(0, 100) || "check model/credits"}`}
               </span>
             ) : (
               <span>
                 Offline tutor — set OPENROUTER_API_KEY on API service (default model:{" "}
-                {aiStatus?.defaultOpenRouterModel || "google/gemma-2-9b-it:free"})
+                {aiStatus?.defaultOpenRouterModel || "meta-llama/llama-3.2-3b-instruct:free"})
               </span>
             )}
           </span>

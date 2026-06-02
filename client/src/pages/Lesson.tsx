@@ -6,6 +6,7 @@ import { Bookmark, CheckCircle, Volume2, Download, Lightbulb, AlertTriangle, Loc
 import { Layout } from "@/components/Layout";
 import { GlassCard } from "@/components/GlassCard";
 import { LessonExercise } from "@/components/LessonExercise";
+import { LessonNavigation } from "@/components/LessonNavigation";
 import { Button } from "@/components/ui/button";
 import { PageLoader } from "@/components/PageLoader";
 import { apiFetch } from "@/lib/api";
@@ -28,6 +29,12 @@ export default function LessonPage() {
         lesson: LessonType;
         savedCode: string;
         requirements: LessonRequirements;
+        navigation?: {
+          position: number;
+          total: number;
+          prev: { slug: string; title: string; unlocked: boolean } | null;
+          next: { slug: string; title: string; unlocked: boolean } | null;
+        };
       }>(`/lessons/${slug}`),
     enabled: !!slug,
     retry: false,
@@ -64,9 +71,14 @@ export default function LessonPage() {
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["lesson-map"] });
+      qc.invalidateQueries({ queryKey: ["lesson", slug] });
       qc.invalidateQueries({ queryKey: ["progress"] });
       qc.invalidateQueries({ queryKey: ["auth", "me"] });
-      toast({ title: "Lesson completed!", description: "Next lesson unlocked." });
+      const nextTitle = data?.navigation?.next?.title;
+      toast({
+        title: "Lesson completed!",
+        description: nextTitle ? `Next up: ${nextTitle}` : "Next lesson unlocked.",
+      });
     },
     onError: (e: Error) => toast({ title: "Cannot complete", description: e.message, variant: "destructive" }),
   });
@@ -109,16 +121,27 @@ export default function LessonPage() {
 
   const req = requirements || data?.requirements;
   const canComplete = req?.canComplete;
+  const nav = data?.navigation;
 
   return (
     <Layout>
-      <div className="flex flex-wrap gap-2 mb-6">
+      <div className="flex flex-wrap gap-2 mb-4">
         <Link href="/courses" className="text-sm text-primary hover:underline">
           ← Courses
         </Link>
         <span className="text-muted-foreground">·</span>
         <span className="text-sm capitalize text-muted-foreground">{lesson.category}</span>
       </div>
+
+      {nav && (
+        <LessonNavigation
+          prev={nav.prev}
+          next={nav.next}
+          position={nav.position}
+          total={nav.total}
+          className="mb-6"
+        />
+      )}
 
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
         <div className="flex flex-wrap justify-between gap-4 mb-6">
@@ -260,14 +283,33 @@ export default function LessonPage() {
 
         <Section title="Summary">{lesson.summary}</Section>
 
-        <Button
-          className="gap-2"
-          disabled={!canComplete || complete.isPending}
-          onClick={() => complete.mutate()}
-        >
-          <CheckCircle className="w-4 h-4" />
-          {canComplete ? "Complete lesson & unlock next" : "Pass challenge + quiz (70%) to complete"}
-        </Button>
+        <div className="space-y-4">
+          <Button
+            className="gap-2"
+            disabled={!canComplete || complete.isPending}
+            onClick={() => complete.mutate()}
+          >
+            <CheckCircle className="w-4 h-4" />
+            {canComplete ? "Complete lesson & unlock next" : "Pass challenge + quiz (70%) to complete"}
+          </Button>
+
+          {nav && (
+            <LessonNavigation
+              prev={nav.prev}
+              next={nav.next}
+              position={nav.position}
+              total={nav.total}
+            />
+          )}
+
+          {canComplete && nav?.next?.unlocked && (
+            <Link href={`/lessons/${nav.next.slug}`}>
+              <Button variant="default" className="w-full sm:w-auto gap-2">
+                Continue to next lesson →
+              </Button>
+            </Link>
+          )}
+        </div>
       </motion.div>
     </Layout>
   );

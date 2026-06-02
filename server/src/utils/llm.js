@@ -1,5 +1,12 @@
-/** Default OpenRouter model — free tier (no credits required). Override with AI_MODEL. */
-const OPENROUTER_DEFAULT_MODEL = "google/gemma-2-9b-it:free";
+/** Default OpenRouter model — free tier. Override with AI_MODEL on Render. */
+const OPENROUTER_DEFAULT_MODEL = "meta-llama/llama-3.2-3b-instruct:free";
+
+/** Tried in order if the primary model returns 404 (deprecated/removed on OpenRouter). */
+const OPENROUTER_FALLBACK_MODELS = [
+  "meta-llama/llama-3.2-3b-instruct:free",
+  "qwen/qwen-2.5-7b-instruct:free",
+  "mistralai/mistral-7b-instruct:free",
+];
 
 const DEFAULTS = {
   provider: process.env.AI_PROVIDER || "auto", // auto | openrouter | openai | gemini
@@ -103,6 +110,11 @@ export function isLlmEnabled() {
   return getAiStatus().enabled;
 }
 
+function openRouterModelsToTry(primaryModel) {
+  const list = [primaryModel, ...OPENROUTER_FALLBACK_MODELS];
+  return [...new Set(list.filter(Boolean))];
+}
+
 async function chatOpenAiCompatible(cfg, messages, { stream = false } = {}) {
   const headers = {
     "Content-Type": "application/json",
@@ -113,32 +125,53 @@ async function chatOpenAiCompatible(cfg, messages, { stream = false } = {}) {
     if (process.env.OPENROUTER_APP_NAME) headers["X-Title"] = process.env.OPENROUTER_APP_NAME;
   }
 
-  const resp = await fetch(`${cfg.baseUrl}/chat/completions`, {
-    method: "POST",
-    headers,
-    body: JSON.stringify({
-      model: cfg.model,
-      messages,
-      temperature: cfg.temperature,
-      max_tokens: cfg.maxTokens,
-      stream,
-    }),
-  });
+  const models =
+    cfg.provider === "openrouter" ? openRouterModelsToTry(cfg.model) : [cfg.model];
 
-  if (!resp.ok) {
-    const body = await resp.text().catch(() => "");
-    let message = `AI request failed (${resp.status}): ${body.slice(0, 400)}`;
-    if (cfg.provider === "openrouter" && resp.status === 401) {
-      message =
-        "OpenRouter rejected your API key (401 User not found). " +
-        "Create a new key at https://openrouter.ai/keys — copy the full sk-or-v1-... value into OPENROUTER_API_KEY on the API service (no quotes), then redeploy.";
+  let lastBody = "";
+  let lastStatus = 0;
+
+  for (const model of models) {
+    const resp = await fetch(`${cfg.baseUrl}/chat/completions`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        model,
+        messages,
+        temperature: cfg.temperature,
+        max_tokens: cfg.maxTokens,
+        stream,
+      }),
+    });
+
+    if (resp.ok) {
+      resp._usedModel = model;
+      return resp;
     }
-    const err = new Error(message);
-    err.code = "AI_REQUEST_FAILED";
-    throw err;
+
+    lastStatus = resp.status;
+    lastBody = await resp.text().catch(() => "");
+
+    // Try next model only when this model id is invalid / unavailable
+    if (cfg.provider === "openrouter" && resp.status === 404) {
+      console.warn(`[ai] OpenRouter model not found: ${model}, trying fallback…`);
+      continue;
+    }
+    break;
   }
 
-  return resp;
+  let message = `AI request failed (${lastStatus}): ${lastBody.slice(0, 400)}`;
+  if (cfg.provider === "openrouter" && lastStatus === 401) {
+    message =
+      "OpenRouter rejected your API key (401). Create a new key at https://openrouter.ai/keys, set OPENROUTER_API_KEY on the API service (no quotes), redeploy.";
+  }
+  if (cfg.provider === "openrouter" && lastStatus === 404) {
+    message =
+      `No OpenRouter model available (tried: ${models.join(", ")}). Set AI_MODEL=meta-llama/llama-3.2-3b-instruct:free on the API service.`;
+  }
+  const err = new Error(message);
+  err.code = "AI_REQUEST_FAILED";
+  throw err;
 }
 
 function toGeminiContents(messages) {
@@ -202,7 +235,7 @@ export async function chatCompletion({ messages }) {
   const text = data?.choices?.[0]?.message?.content;
   return {
     provider: cfg.provider,
-    model: cfg.model,
+    model: resp._usedModel || cfg.model,
     text: typeof text === "string" ? text : "",
   };
 }
@@ -292,7 +325,7 @@ export async function streamChatCompletion({ messages, res }) {
 
     send("done", { text: full });
     res.end();
-    return { provider: cfg.provider, model: cfg.model, text: full };
+    return { provider: cfg.provider, model: resp._usedModel || cfg.model, text: full };
   } catch (e) {
     send("error", { message: e.message || "Stream failed" });
     res.end();

@@ -95,11 +95,25 @@ router.get(
     const lessonObj = lesson.toObject();
     lessonObj.codingChallenge = sanitizeChallengeForClient(lesson.codingChallenge);
 
+    const idx = map.findIndex((m) => m.slug === lesson.slug);
+    const prevEntry = idx > 0 ? map[idx - 1] : null;
+    const nextEntry = idx >= 0 && idx < map.length - 1 ? map[idx + 1] : null;
+
     res.json({
       lesson: lessonObj,
       progress: prog,
       requirements,
       savedCode: prog?.savedCode || lesson.codingChallenge?.starterCode || "",
+      navigation: {
+        position: idx >= 0 ? idx + 1 : 0,
+        total: map.length,
+        prev: prevEntry
+          ? { slug: prevEntry.slug, title: prevEntry.title, unlocked: prevEntry.unlocked }
+          : null,
+        next: nextEntry
+          ? { slug: nextEntry.slug, title: nextEntry.title, unlocked: nextEntry.unlocked }
+          : null,
+      },
     });
   })
 );
