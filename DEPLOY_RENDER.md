@@ -123,7 +123,7 @@ In **Environment** tab, add:
 
 | Key | Value |
 |-----|--------|
-| `OPENROUTER_API_KEY` | Recommended free-tier option — [OpenRouter](https://openrouter.ai/) |
+| `OPENROUTER_API_KEY` | From [openrouter.ai/keys](https://openrouter.ai/keys) — full `sk-or-v1-...` value, no quotes. **401 User not found** = wrong/expired key; create a new one. |
 | `OPENROUTER_SITE_URL` | Your frontend URL (optional, for OpenRouter rankings) |
 | `OPENROUTER_APP_NAME` | `Python Edition` (optional) |
 | `GEMINI_API_KEY` | Alternative — [Google AI Studio](https://aistudio.google.com/apikey) |

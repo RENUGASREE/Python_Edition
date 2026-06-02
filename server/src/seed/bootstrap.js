@@ -11,6 +11,25 @@ import User from "../models/User.js";
 import Leaderboard from "../models/Leaderboard.js";
 import { generateAllLessons, PROJECTS } from "./lessonsData.js";
 import { EXPANDED_CHALLENGES } from "./challengesExpanded.js";
+import { getCodingChallengeForLesson } from "./lessonExercises.js";
+
+/** Repair known-bad test data in production without wiping progress. */
+async function repairLessonTestCases() {
+  const intro = await Lesson.findOne({ slug: "introduction-to-python" });
+  if (!intro?.codingChallenge) return 0;
+  const fixed = getCodingChallengeForLesson("Introduction to Python", "beginner", "easy");
+  const hasBadHidden = intro.codingChallenge.testCases?.some(
+    (t) => t.hidden && t.expectedOutput === "Student\n7"
+  );
+  if (hasBadHidden && fixed?.testCases) {
+    intro.codingChallenge.testCases = fixed.testCases;
+    intro.markModified("codingChallenge");
+    await intro.save();
+    console.log("[bootstrap] Fixed Introduction to Python hidden test");
+    return 1;
+  }
+  return 0;
+}
 
 export async function bootstrapDatabase(options = {}) {
   const { force = false } = options;
@@ -53,6 +72,7 @@ export async function bootstrapDatabase(options = {}) {
     if (report.lessons.added || report.lessons.updated) {
       console.log(`[bootstrap] Lessons +${report.lessons.added} new, ${report.lessons.updated} updated`);
     }
+    report.lessons.repaired = await repairLessonTestCases();
   }
 
   // Projects

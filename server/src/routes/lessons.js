@@ -13,6 +13,7 @@ import { awardXp, QUIZ_PASS_THRESHOLD } from "../utils/xp.js";
 import Leaderboard from "../models/Leaderboard.js";
 import { asyncHandler } from "../middleware/asyncHandler.js";
 import { runPythonTestCase } from "../utils/pythonRunner.js";
+import { evaluateTestCase } from "../utils/testEvaluator.js";
 
 const router = Router();
 
@@ -116,12 +117,13 @@ router.post(
     const results = [];
     for (const tc of visible) {
       const { output, error } = await runPythonTestCase(code, tc.input || "");
+      const passed = evaluateTestCase(tc, { output, error });
       results.push({
         input: tc.input,
-        expected: tc.expectedOutput,
+        expected: tc.matcher ? "(two lines: name + number)" : tc.expectedOutput,
         output,
         error,
-        passed: !error && output.trim() === (tc.expectedOutput || "").trim(),
+        passed,
       });
     }
 
@@ -151,14 +153,18 @@ router.post(
     const results = [];
     for (const tc of tests) {
       const { output, error } = await runPythonTestCase(code, tc.input || "");
-      const ok = !error && output.trim() === (tc.expectedOutput || "").trim();
+      const ok = evaluateTestCase(tc, { output, error });
       if (ok) passed++;
       results.push({
         passed: ok,
         output,
         error,
         hidden: !!tc.hidden,
-        expected: tc.hidden ? undefined : tc.expectedOutput,
+        expected: tc.hidden
+          ? tc.matcher
+            ? "Two lines: any name, numeric second line"
+            : undefined
+          : tc.expectedOutput,
       });
     }
 

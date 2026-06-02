@@ -127,7 +127,13 @@ async function chatOpenAiCompatible(cfg, messages, { stream = false } = {}) {
 
   if (!resp.ok) {
     const body = await resp.text().catch(() => "");
-    const err = new Error(`AI request failed (${resp.status}): ${body.slice(0, 400)}`);
+    let message = `AI request failed (${resp.status}): ${body.slice(0, 400)}`;
+    if (cfg.provider === "openrouter" && resp.status === 401) {
+      message =
+        "OpenRouter rejected your API key (401 User not found). " +
+        "Create a new key at https://openrouter.ai/keys — copy the full sk-or-v1-... value into OPENROUTER_API_KEY on the API service (no quotes), then redeploy.";
+    }
+    const err = new Error(message);
     err.code = "AI_REQUEST_FAILED";
     throw err;
   }

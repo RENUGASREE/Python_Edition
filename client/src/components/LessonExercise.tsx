@@ -204,6 +204,14 @@ export function LessonExercise({ slug, challenge, savedCode, requirements, onPas
         </div>
       )}
 
+      {submitResults.some((r) => r.hidden && !r.passed) && (
+        <p className="text-xs text-muted-foreground mb-3 p-3 rounded-lg border border-border bg-muted/20">
+          <strong className="text-foreground">Hidden test</strong> — an extra check on submit (not shown before).
+          It verifies your program follows the rules for any valid answer (e.g. two lines: name + number),
+          not only the Alice/42 example. Fix your code to match the lesson constraints, then submit again.
+        </p>
+      )}
+
       {submitResults.length > 0 && (
         <div className="space-y-2">
           <p className="text-xs font-medium">Submission results</p>

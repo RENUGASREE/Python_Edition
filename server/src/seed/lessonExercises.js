@@ -31,7 +31,12 @@ const EXERCISE_BANK = {
     starterCode: "# Print name then favorite number\n",
     testCases: [
       { input: "", expectedOutput: "Alice\n42", hidden: false },
-      { input: "", expectedOutput: "Student\n7", hidden: true },
+      {
+        input: "",
+        expectedOutput: "",
+        hidden: true,
+        matcher: "twoNonEmptyLinesSecondNumeric",
+      },
     ],
     xpReward: 20,
     timeEstimate: "8 min",

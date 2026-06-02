@@ -156,7 +156,9 @@ export default function Assistant() {
               </span>
             ) : aiStatus?.enabled ? (
               <span className="truncate" title={aiStatus.probe?.error}>
-                AI key set but request failed — {aiStatus.probe?.error?.slice(0, 80) || "check model/credits"}
+                {aiStatus.probe?.error?.includes("401") || aiStatus.probe?.error?.includes("User not found")
+                  ? "Invalid OpenRouter key — create new key at openrouter.ai/keys, redeploy API"
+                  : `AI failed — ${aiStatus.probe?.error?.slice(0, 100) || "check model/credits"}`}
               </span>
             ) : (
               <span>

@@ -3,8 +3,9 @@ import mongoose from "mongoose";
 const testCaseSchema = new mongoose.Schema(
   {
     input: { type: String, default: "" },
-    expectedOutput: { type: String, required: true },
+    expectedOutput: { type: String, default: "" },
     hidden: { type: Boolean, default: false },
+    matcher: { type: String },
   },
   { _id: false }
 );
