@@ -88,3 +88,64 @@ export async function apiFetch<T = unknown>(
   if (!res.ok) throw new Error(data.message || res.statusText || "Request failed");
   return data as T;
 }
+
+export type SseHandlers = {
+  onMeta?: (data: Record<string, unknown>) => void;
+  onToken?: (text: string) => void;
+  onDone?: (data: { text?: string }) => void;
+  onError?: (message: string) => void;
+};
+
+/** POST with SSE response (AI streaming). */
+export async function apiStreamPost(path: string, body: unknown, handlers: SseHandlers): Promise<void> {
+  const token = getToken();
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+    Accept: "text/event-stream",
+  };
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  const res = await fetch(apiUrl(path), {
+    method: "POST",
+    headers,
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error((data as { message?: string }).message || res.statusText || "Stream failed");
+  }
+
+  const reader = res.body?.getReader();
+  if (!reader) throw new Error("No response body");
+
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const parts = buffer.split("\n\n");
+    buffer = parts.pop() || "";
+
+    for (const block of parts) {
+      let event = "message";
+      let dataStr = "";
+      for (const line of block.split("\n")) {
+        if (line.startsWith("event: ")) event = line.slice(7).trim();
+        if (line.startsWith("data: ")) dataStr = line.slice(6);
+      }
+      if (!dataStr) continue;
+      try {
+        const data = JSON.parse(dataStr) as Record<string, unknown>;
+        if (event === "meta") handlers.onMeta?.(data);
+        else if (event === "token") handlers.onToken?.((data.text as string) || "");
+        else if (event === "done") handlers.onDone?.(data as { text?: string });
+        else if (event === "error") handlers.onError?.((data.message as string) || "Stream error");
+      } catch {
+        /* ignore malformed chunk */
+      }
+    }
+  }
+}

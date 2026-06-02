@@ -4,7 +4,7 @@ import Progress from "../models/Progress.js";
 import ChatMessage from "../models/ChatMessage.js";
 import { protect } from "../middleware/auth.js";
 import { asyncHandler } from "../middleware/asyncHandler.js";
-import { chatCompletion, isLlmEnabled } from "../utils/llm.js";
+import { chatCompletion, isLlmEnabled, getAiStatus, streamChatCompletion } from "../utils/llm.js";
 
 const router = Router();
 
@@ -66,6 +66,65 @@ function buildReply(message, { lesson, mode, user, progress }) {
 }
 
 router.get(
+  "/status",
+  protect,
+  asyncHandler(async (_req, res) => {
+    res.json(getAiStatus());
+  })
+);
+
+async function buildMessages(req, { message, lessonSlug, mode }) {
+  let lesson = null;
+  let progress = null;
+  if (lessonSlug) {
+    lesson = await Lesson.findOne({ slug: lessonSlug }).select(
+      "title difficulty summary objectives tips codingChallenge"
+    );
+    progress = await Progress.findOne({ user: req.user._id, lesson: lesson?._id });
+  }
+
+  const history = await ChatMessage.find({ user: req.user._id, lessonSlug: lessonSlug || null })
+    .sort({ createdAt: -1 })
+    .limit(12);
+
+  const system = [
+    "You are Python Edition's AI tutor.",
+    "Be concise, kind, and accurate.",
+    "Prefer guiding questions and small steps over full solutions.",
+    "If mode is 'hint', give a minimal hint (no full solution).",
+    "If mode is 'debug', explain the likely error cause and propose 2-4 concrete fixes.",
+    "If mode is 'revision', give a short plan: what to review + 2 practice actions.",
+    "When code is provided, review it and point out mistakes or improvements.",
+    "Use markdown. Use fenced code blocks for Python examples.",
+  ].join(" ");
+
+  const contextLines = [];
+  if (lesson) {
+    contextLines.push(`Lesson: ${lesson.title} (${lesson.difficulty}).`);
+    if (lesson.summary) contextLines.push(`Summary: ${lesson.summary}`);
+    if (lesson.objectives?.length) contextLines.push(`Objectives: ${lesson.objectives.join(" | ")}`);
+    if (lesson.codingChallenge?.problemStatement)
+      contextLines.push(`Challenge: ${lesson.codingChallenge.problemStatement}`);
+  }
+  if (progress) {
+    contextLines.push(`Progress: challengePassed=${!!progress.challengePassed}, quizPassed=${!!progress.quizPassed}.`);
+  }
+  contextLines.push(`User skill: ${req.user?.performance?.skillLevel || "beginner"}.`);
+  contextLines.push(`Mode: ${mode}.`);
+
+  const messages = [
+    { role: "system", content: system },
+    { role: "system", content: contextLines.join("\n") },
+    ...history
+      .reverse()
+      .map((m) => ({ role: m.role === "assistant" ? "assistant" : "user", content: m.content })),
+    { role: "user", content: message },
+  ];
+
+  return { messages, lesson, progress, lessonSlug, mode };
+}
+
+router.get(
   "/history",
   protect,
   asyncHandler(async (req, res) => {
@@ -81,64 +140,21 @@ router.post(
   protect,
   asyncHandler(async (req, res) => {
     const { message, lessonSlug, mode = "tutor" } = req.body;
-    let lesson = null;
-    let progress = null;
-    if (lessonSlug) {
-      lesson = await Lesson.findOne({ slug: lessonSlug }).select(
-        "title difficulty summary objectives tips codingChallenge"
-      );
-      progress = await Progress.findOne({ user: req.user._id, lesson: lesson?._id });
-    }
+    const ctx = await buildMessages(req, { message, lessonSlug, mode });
+    const { lesson, progress } = ctx;
 
     let reply = "";
     let provider = "offline";
     let model = null;
 
     if (isLlmEnabled()) {
-      const history = await ChatMessage.find({ user: req.user._id, lessonSlug: lessonSlug || null })
-        .sort({ createdAt: -1 })
-        .limit(12);
-
-      const system = [
-        "You are Python Edition's AI tutor.",
-        "Be concise, kind, and accurate.",
-        "Prefer guiding questions and small steps over full solutions.",
-        "If mode is 'hint', give a minimal hint (no full solution).",
-        "If mode is 'debug', explain the likely error cause and propose 2-4 concrete fixes.",
-        "If mode is 'revision', give a short plan: what to review + 2 practice actions.",
-        "When code is provided, review it and point out mistakes or improvements.",
-      ].join(" ");
-
-      const contextLines = [];
-      if (lesson) {
-        contextLines.push(`Lesson: ${lesson.title} (${lesson.difficulty}).`);
-        if (lesson.summary) contextLines.push(`Summary: ${lesson.summary}`);
-        if (lesson.objectives?.length) contextLines.push(`Objectives: ${lesson.objectives.join(" | ")}`);
-        if (lesson.codingChallenge?.problemStatement)
-          contextLines.push(`Challenge: ${lesson.codingChallenge.problemStatement}`);
-      }
-      if (progress) {
-        contextLines.push(`Progress: challengePassed=${!!progress.challengePassed}, quizPassed=${!!progress.quizPassed}.`);
-      }
-      contextLines.push(`User skill: ${req.user?.performance?.skillLevel || "beginner"}.`);
-      contextLines.push(`Mode: ${mode}.`);
-
-      const messages = [
-        { role: "system", content: system },
-        { role: "system", content: contextLines.join("\n") },
-        ...history
-          .reverse()
-          .map((m) => ({ role: m.role === "assistant" ? "assistant" : "user", content: m.content })),
-        { role: "user", content: message },
-      ];
-
       try {
-        const out = await chatCompletion({ messages });
+        const out = await chatCompletion({ messages: ctx.messages });
         reply = out.text?.trim() || "";
         provider = out.provider;
         model = out.model;
       } catch (e) {
-        // fall back to offline tutor
+        console.warn("[ai] LLM failed, using offline tutor:", e.message);
         reply = "";
       }
     }
@@ -156,8 +172,49 @@ router.post(
       mode,
       provider,
       model,
+      aiEnabled: isLlmEnabled(),
       timestamp: new Date().toISOString(),
     });
+  })
+);
+
+router.post(
+  "/chat/stream",
+  protect,
+  asyncHandler(async (req, res) => {
+    const { message, lessonSlug, mode = "tutor" } = req.body;
+    const ctx = await buildMessages(req, { message, lessonSlug, mode });
+    const { lesson, progress } = ctx;
+
+    await ChatMessage.create({ user: req.user._id, role: "user", content: message, mode, lessonSlug });
+
+    if (!isLlmEnabled()) {
+      const reply = buildReply(message, { lesson, mode, user: req.user, progress });
+      await ChatMessage.create({ user: req.user._id, role: "assistant", content: reply, mode, lessonSlug });
+      res.setHeader("Content-Type", "text/event-stream");
+      res.write(`event: meta\ndata: ${JSON.stringify({ provider: "offline", model: null })}\n\n`);
+      res.write(`event: token\ndata: ${JSON.stringify({ text: reply })}\n\n`);
+      res.write(`event: done\ndata: ${JSON.stringify({ text: reply })}\n\n`);
+      return res.end();
+    }
+
+    try {
+      const out = await streamChatCompletion({ messages: ctx.messages, res });
+      const text = out?.text?.trim() || "";
+      if (text) {
+        await ChatMessage.create({ user: req.user._id, role: "assistant", content: text, mode, lessonSlug });
+      }
+    } catch (e) {
+      if (!res.headersSent) {
+        const reply = buildReply(message, { lesson, mode, user: req.user, progress });
+        await ChatMessage.create({ user: req.user._id, role: "assistant", content: reply, mode, lessonSlug });
+        res.setHeader("Content-Type", "text/event-stream");
+        res.write(`event: meta\ndata: ${JSON.stringify({ provider: "offline", model: null })}\n\n`);
+        res.write(`event: token\ndata: ${JSON.stringify({ text: reply })}\n\n`);
+        res.write(`event: done\ndata: ${JSON.stringify({ text: reply })}\n\n`);
+        res.end();
+      }
+    }
   })
 );
 

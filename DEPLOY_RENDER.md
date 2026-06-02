@@ -111,6 +111,28 @@ In **Environment** tab, add:
 | `ADMIN_PASSWORD` | Strong admin password |
 | `PYTHON_BIN` | `python3` |
 
+**Interactive terminal** (compiler, lessons, challenges — real `input()` in console):
+
+| Key | Value |
+|-----|--------|
+| `PYTHON_BIN` | `python3` (required on Render for live console) |
+| `TERMINAL_TIMEOUT_MS` | `30000` (optional) |
+| `TERMINAL_OUTPUT_WAIT_MS` | `220` (optional) |
+
+**AI tutor** (pick one provider; without keys, offline keyword tutor is used):
+
+| Key | Value |
+|-----|--------|
+| `OPENROUTER_API_KEY` | Recommended free-tier option — [OpenRouter](https://openrouter.ai/) |
+| `OPENROUTER_SITE_URL` | Your frontend URL (optional, for OpenRouter rankings) |
+| `OPENROUTER_APP_NAME` | `Python Edition` (optional) |
+| `GEMINI_API_KEY` | Alternative — [Google AI Studio](https://aistudio.google.com/apikey) |
+| `OPENAI_API_KEY` | Paid OpenAI (optional) |
+| `AI_PROVIDER` | `auto` \| `openrouter` \| `gemini` \| `openai` |
+| `AI_MODEL` | e.g. `openai/gpt-4o-mini` or `gemini-2.0-flash` |
+
+Verify AI after deploy: `GET /api/health` includes `ai.enabled: true`, or log in and open **AI Assistant** (badge shows “Live AI”).
+
 Optional:
 | `SEED_SECRET` | Random string — required header for manual re-seed via admin API |
 
@@ -200,6 +222,8 @@ Redeploy API if you change CORS.
 - [ ] Courses show lessons (36+)
 - [ ] Challenges page shows categories
 - [ ] No CORS errors in browser console
+- [ ] Compiler: run `input()` sample — type in console, not a separate textarea
+- [ ] AI Assistant badge shows **Live AI** (not offline) when API key is set
 
 ---
 
@@ -209,7 +233,8 @@ Redeploy API if you change CORS.
 |------------|------------|
 | No Shell | Auto-seed on startup + `/api/admin/bootstrap` |
 | Cold start (~30–60s) | Health check path; users wait on first load |
-| Python compiler | May not work on Render free without Python runtime; lessons/quizzes still work |
+| Python on API | Set `PYTHON_BIN=python3`; Render Node images include Python — interactive console needs it |
+| AI on free tier | Use OpenRouter or Gemini free keys; redeploy API after adding env vars |
 | Static site rebuild | Changing `VITE_API_BASE_URL` requires **manual redeploy** |
 
 ---

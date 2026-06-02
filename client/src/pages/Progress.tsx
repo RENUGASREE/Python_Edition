@@ -17,10 +17,7 @@ import { GlassCard } from "@/components/GlassCard";
 import { PageLoader } from "@/components/PageLoader";
 import { apiFetch } from "@/lib/api";
 import { Award, Flame, Sparkles, Target } from "lucide-react";
-import { useTheme } from "@/components/ThemeProvider";
-
 export default function ProgressPage() {
-  const { theme } = useTheme();
   const { data, isLoading } = useQuery({
     queryKey: ["progress"],
     queryFn: () => apiFetch<Record<string, unknown>>("/progress"),
@@ -45,7 +42,7 @@ export default function ProgressPage() {
     border: "1px solid hsl(var(--border))",
     borderRadius: "12px",
     color: "hsl(var(--popover-foreground))",
-    boxShadow: theme === "dark" ? "0 16px 40px rgba(0,0,0,0.45)" : "0 16px 40px rgba(2,6,23,0.12)",
+    boxShadow: "0 16px 40px rgba(0,0,0,0.45)",
   } as const;
   const gridStroke = "hsl(var(--border) / 0.6)";
   const axisStroke = "hsl(var(--muted-foreground))";

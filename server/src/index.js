@@ -5,11 +5,13 @@ import morgan from "morgan";
 import mongoose from "mongoose";
 
 import { connectDB, isDbConnected } from "./config/db.js";
+import { getAiStatus } from "./utils/llm.js";
 import { bootstrapDatabase } from "./seed/bootstrap.js";
 import authRoutes from "./routes/auth.js";
 import lessonRoutes from "./routes/lessons.js";
 import progressRoutes from "./routes/progress.js";
 import compilerRoutes from "./routes/compiler.js";
+import terminalRoutes from "./routes/terminal.js";
 import projectRoutes from "./routes/projects.js";
 import challengeRoutes from "./routes/challenges.js";
 import leaderboardRoutes from "./routes/leaderboard.js";
@@ -55,6 +57,7 @@ app.get("/api/health", (_req, res) => {
     env: process.env.NODE_ENV || "development",
     uptimeSeconds: Math.floor((Date.now() - startedAt) / 1000),
     autoSeed: process.env.AUTO_SEED_ON_STARTUP !== "false",
+    ai: getAiStatus(),
     timestamp: new Date().toISOString(),
   });
 });
@@ -67,6 +70,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/lessons", lessonRoutes);
 app.use("/api/progress", progressRoutes);
 app.use("/api/compiler", compilerRoutes);
+app.use("/api/terminal", terminalRoutes);
 app.use("/api/projects", projectRoutes);
 app.use("/api/challenges", challengeRoutes);
 app.use("/api/leaderboard", leaderboardRoutes);

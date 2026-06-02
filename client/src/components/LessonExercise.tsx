@@ -3,6 +3,7 @@ import Editor from "@monaco-editor/react";
 import { Play, Send, Lightbulb, CheckCircle2, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { GlassCard } from "@/components/GlassCard";
+import { InteractiveTerminal } from "@/components/InteractiveTerminal";
 import { apiFetch } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import type { CodingChallenge, LessonRequirements } from "@/types";
@@ -111,6 +112,11 @@ export function LessonExercise({ slug, challenge, savedCode, requirements, onPas
 
       <div className="rounded-xl overflow-hidden border border-border mb-3">
         <Editor height="220px" defaultLanguage="python" theme="vs-dark" value={code} onChange={(v) => setCode(v || "")} />
+      </div>
+
+      <div className="mb-4">
+        <p className="text-xs font-medium text-muted-foreground mb-2">Interactive console (try your code)</p>
+        <InteractiveTerminal code={code} height={200} title="Lesson console" />
       </div>
 
       <div className="flex flex-wrap gap-2 mb-3">
