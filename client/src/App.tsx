@@ -20,7 +20,6 @@ import ProgressPage from "@/pages/Progress";
 import Projects from "@/pages/Projects";
 import ProjectDetail from "@/pages/ProjectDetail";
 import Challenges from "@/pages/Challenges";
-import Leaderboard from "@/pages/Leaderboard";
 import Assistant from "@/pages/Assistant";
 import Admin from "@/pages/Admin";
 import AdminLessons from "@/pages/AdminLessons";
@@ -71,7 +70,7 @@ function Router() {
       <Route path="/projects">{() => <ProtectedRoute component={Projects} />}</Route>
       <Route path="/projects/:slug">{() => <ProtectedRoute component={ProjectDetail} />}</Route>
       <Route path="/challenges">{() => <ProtectedRoute component={Challenges} />}</Route>
-      <Route path="/leaderboard">{() => <ProtectedRoute component={Leaderboard} />}</Route>
+      <Route path="/leaderboard">{() => <Redirect to="/dashboard" />}</Route>
       <Route path="/assistant">{() => <ProtectedRoute component={Assistant} />}</Route>
       <Route path="/profile">{() => <ProtectedRoute component={Profile} />}</Route>
       <Route path="/admin">{() => <AdminRoute component={Admin} />}</Route>

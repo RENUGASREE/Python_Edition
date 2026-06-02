@@ -1,3 +1,6 @@
+/** Default OpenRouter model — free tier (no credits required). Override with AI_MODEL. */
+const OPENROUTER_DEFAULT_MODEL = "google/gemma-2-9b-it:free";
+
 const DEFAULTS = {
   provider: process.env.AI_PROVIDER || "auto", // auto | openrouter | openai | gemini
   model: process.env.AI_MODEL || "",
@@ -5,18 +8,22 @@ const DEFAULTS = {
   maxTokens: Number(process.env.AI_MAX_TOKENS || "900"),
 };
 
+function trimKey(value) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
 function pickProvider() {
   const forced = (process.env.AI_PROVIDER || "auto").toLowerCase();
-  if (forced === "openai" && process.env.OPENAI_API_KEY) return "openai";
-  if (forced === "openrouter" && (process.env.OPENROUTER_API_KEY || process.env.OPENAI_API_KEY)) {
+  if (forced === "openai" && trimKey(process.env.OPENAI_API_KEY)) return "openai";
+  if (forced === "openrouter" && (trimKey(process.env.OPENROUTER_API_KEY) || trimKey(process.env.OPENAI_API_KEY))) {
     return "openrouter";
   }
-  if (forced === "gemini" && process.env.GEMINI_API_KEY) return "gemini";
+  if (forced === "gemini" && trimKey(process.env.GEMINI_API_KEY)) return "gemini";
   if (forced !== "auto") return forced;
 
-  if (process.env.OPENROUTER_API_KEY) return "openrouter";
-  if (process.env.GEMINI_API_KEY) return "gemini";
-  if (process.env.OPENAI_API_KEY) return "openai";
+  if (trimKey(process.env.OPENROUTER_API_KEY)) return "openrouter";
+  if (trimKey(process.env.GEMINI_API_KEY)) return "gemini";
+  if (trimKey(process.env.OPENAI_API_KEY)) return "openai";
   return null;
 }
 
@@ -29,7 +36,7 @@ function getConfig() {
   if (provider === "gemini") {
     return {
       provider: "gemini",
-      apiKey: process.env.GEMINI_API_KEY,
+      apiKey: trimKey(process.env.GEMINI_API_KEY),
       baseUrl: "https://generativelanguage.googleapis.com/v1beta",
       model: process.env.AI_MODEL || "gemini-2.0-flash",
       temperature: DEFAULTS.temperature,
@@ -40,7 +47,7 @@ function getConfig() {
   if (provider === "openai") {
     return {
       provider: "openai",
-      apiKey: process.env.OPENAI_API_KEY,
+      apiKey: trimKey(process.env.OPENAI_API_KEY),
       baseUrl: (process.env.OPENAI_BASE_URL || "https://api.openai.com/v1").replace(/\/+$/, ""),
       model: process.env.AI_MODEL || "gpt-4o-mini",
       temperature: DEFAULTS.temperature,
@@ -50,9 +57,9 @@ function getConfig() {
 
   return {
     provider: "openrouter",
-    apiKey: process.env.OPENROUTER_API_KEY || process.env.OPENAI_API_KEY,
+    apiKey: trimKey(process.env.OPENROUTER_API_KEY) || trimKey(process.env.OPENAI_API_KEY),
     baseUrl: (process.env.OPENROUTER_BASE_URL || "https://openrouter.ai/api/v1").replace(/\/+$/, ""),
-    model: process.env.AI_MODEL || "openai/gpt-4o-mini",
+    model: process.env.AI_MODEL?.trim() || OPENROUTER_DEFAULT_MODEL,
     temperature: DEFAULTS.temperature,
     maxTokens: DEFAULTS.maxTokens,
   };
@@ -61,13 +68,35 @@ function getConfig() {
 export function getAiStatus() {
   const cfg = getConfig();
   return {
-    enabled: Boolean(cfg.apiKey && cfg.apiKey.trim().length > 8),
+    enabled: Boolean(cfg.apiKey && cfg.apiKey.length > 8),
     provider: cfg.provider,
     model: cfg.model,
+    defaultOpenRouterModel: OPENROUTER_DEFAULT_MODEL,
     hint: cfg.apiKey
-      ? "AI provider configured"
-      : "Set OPENROUTER_API_KEY, GEMINI_API_KEY, or OPENAI_API_KEY on the API service",
+      ? `Using ${cfg.provider} model: ${cfg.model}`
+      : "Set OPENROUTER_API_KEY on the API Web Service (not the static site), then redeploy",
   };
+}
+
+/** Quick live check that the configured provider accepts requests. */
+export async function probeAiConnection() {
+  const cfg = getConfig();
+  if (!cfg.apiKey) {
+    return { ok: false, error: "No API key configured on server" };
+  }
+  try {
+    const out = await chatCompletion({
+      messages: [{ role: "user", content: "Reply with exactly: OK" }],
+    });
+    return {
+      ok: Boolean(out.text?.trim()),
+      provider: out.provider,
+      model: out.model,
+      sample: out.text?.slice(0, 80) || "",
+    };
+  } catch (e) {
+    return { ok: false, error: e.message || "Probe failed", provider: cfg.provider, model: cfg.model };
+  }
 }
 
 export function isLlmEnabled() {

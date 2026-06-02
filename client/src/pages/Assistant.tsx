@@ -39,7 +39,15 @@ export default function Assistant() {
 
   const { data: aiStatus } = useQuery({
     queryKey: ["ai-status"],
-    queryFn: () => apiFetch<{ enabled: boolean; provider: string | null; model: string | null; hint: string }>("/ai/status"),
+    queryFn: () =>
+      apiFetch<{
+        enabled: boolean;
+        provider: string | null;
+        model: string | null;
+        hint: string;
+        defaultOpenRouterModel?: string;
+        probe?: { ok: boolean; error?: string; model?: string; provider?: string };
+      }>("/ai/status?probe=1"),
   });
 
   useQuery({
@@ -133,16 +141,29 @@ export default function Assistant() {
         </h1>
         <div className="flex items-center gap-2 flex-wrap">
           <span
-            className={`text-xs px-2 py-1 rounded-full border flex items-center gap-1 ${
-              aiStatus?.enabled
+            className={`text-xs px-2 py-1 rounded-full border flex items-center gap-1 max-w-md ${
+              aiStatus?.probe?.ok
                 ? "border-primary/40 text-primary bg-primary/10"
-                : "border-border text-muted-foreground bg-muted/30"
+                : aiStatus?.enabled
+                  ? "border-destructive/40 text-destructive bg-destructive/10"
+                  : "border-border text-muted-foreground bg-muted/30"
             }`}
           >
-            <Sparkles className="w-3 h-3" />
-            {aiStatus?.enabled
-              ? `Live AI · ${aiStatus.provider}${aiStatus.model ? ` · ${aiStatus.model}` : ""}`
-              : "Offline tutor — add OPENROUTER_API_KEY or GEMINI_API_KEY on Render"}
+            <Sparkles className="w-3 h-3 shrink-0" />
+            {aiStatus?.probe?.ok ? (
+              <span className="truncate">
+                Live AI · {aiStatus.probe.provider} · {aiStatus.probe.model}
+              </span>
+            ) : aiStatus?.enabled ? (
+              <span className="truncate" title={aiStatus.probe?.error}>
+                AI key set but request failed — {aiStatus.probe?.error?.slice(0, 80) || "check model/credits"}
+              </span>
+            ) : (
+              <span>
+                Offline tutor — set OPENROUTER_API_KEY on API service (default model:{" "}
+                {aiStatus?.defaultOpenRouterModel || "google/gemma-2-9b-it:free"})
+              </span>
+            )}
           </span>
           {provider && provider !== "offline" && (
             <span className="text-xs text-muted-foreground">Session: {provider}</span>

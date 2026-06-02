@@ -4,7 +4,13 @@ import Progress from "../models/Progress.js";
 import ChatMessage from "../models/ChatMessage.js";
 import { protect } from "../middleware/auth.js";
 import { asyncHandler } from "../middleware/asyncHandler.js";
-import { chatCompletion, isLlmEnabled, getAiStatus, streamChatCompletion } from "../utils/llm.js";
+import {
+  chatCompletion,
+  isLlmEnabled,
+  getAiStatus,
+  streamChatCompletion,
+  probeAiConnection,
+} from "../utils/llm.js";
 
 const router = Router();
 
@@ -68,8 +74,12 @@ function buildReply(message, { lesson, mode, user, progress }) {
 router.get(
   "/status",
   protect,
-  asyncHandler(async (_req, res) => {
-    res.json(getAiStatus());
+  asyncHandler(async (req, res) => {
+    const status = getAiStatus();
+    if (status.enabled && req.query.probe !== "0") {
+      status.probe = await probeAiConnection();
+    }
+    res.json(status);
   })
 );
 

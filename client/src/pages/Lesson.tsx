@@ -85,13 +85,22 @@ export default function LessonPage() {
   }
 
   if (error || !lesson) {
+    const msg = (error as Error)?.message || "Lesson unavailable";
+    const locked = msg.toLowerCase().includes("locked");
     return (
       <Layout>
-        <GlassCard className="p-8 text-center">
-          <Lock className="w-10 h-10 mx-auto text-muted-foreground mb-3" />
-          <p>{(error as Error)?.message || "Lesson unavailable"}</p>
-          <Link href="/courses" className="text-primary text-sm mt-2 inline-block">
-            Back to courses
+        <GlassCard className="p-8 text-center max-w-lg mx-auto">
+          <Lock className="w-10 h-10 mx-auto text-accent mb-3" />
+          <h2 className="font-semibold text-lg mb-2">{locked ? "Lesson locked" : "Lesson unavailable"}</h2>
+          <p className="text-muted-foreground text-sm mb-4">{msg}</p>
+          {locked && (
+            <p className="text-xs text-muted-foreground mb-4">
+              Complete the previous lesson in your track (challenge + quiz ≥ 70%) to unlock{" "}
+              <span className="font-mono text-foreground">{slug}</span>.
+            </p>
+          )}
+          <Link href="/courses" className="text-primary text-sm inline-block hover:underline">
+            ← Back to courses
           </Link>
         </GlassCard>
       </Layout>

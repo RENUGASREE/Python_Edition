@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Editor from "@monaco-editor/react";
-import { Play, Send, Lightbulb, CheckCircle2, XCircle } from "lucide-react";
+import { Play, Send, Lightbulb, CheckCircle2, XCircle, Terminal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { GlassCard } from "@/components/GlassCard";
-import { InteractiveTerminal } from "@/components/InteractiveTerminal";
+import { InteractiveTerminal, type InteractiveTerminalHandle } from "@/components/InteractiveTerminal";
 import { apiFetch } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import type { CodingChallenge, LessonRequirements } from "@/types";
@@ -16,6 +16,10 @@ interface Props {
   onPassed: () => void;
 }
 
+function codeUsesInput(code: string) {
+  return /\binput\s*\(/.test(code);
+}
+
 export function LessonExercise({ slug, challenge, savedCode, requirements, onPassed }: Props) {
   const { toast } = useToast();
   const [code, setCode] = useState(savedCode || challenge.starterCode);
@@ -26,14 +30,36 @@ export function LessonExercise({ slug, challenge, savedCode, requirements, onPas
   const [submitResults, setSubmitResults] = useState<
     { passed: boolean; hidden?: boolean; error?: string; expected?: string }[]
   >([]);
-  const [loading, setLoading] = useState<"run" | "submit" | null>(null);
+  const [loading, setLoading] = useState<"tests" | "submit" | null>(null);
+  const [consoleRunning, setConsoleRunning] = useState(false);
+  const terminalRef = useRef<InteractiveTerminalHandle>(null);
+
+  const noInputRequired = challenge.constraints?.some((c) => /no input/i.test(c));
 
   useEffect(() => {
     setCode(savedCode || challenge.starterCode);
   }, [savedCode, challenge.starterCode]);
 
-  const run = async () => {
-    setLoading("run");
+  const runInConsole = async () => {
+    setConsoleRunning(true);
+    try {
+      await terminalRef.current?.run();
+    } finally {
+      setConsoleRunning(false);
+    }
+  };
+
+  const checkTests = async () => {
+    if (codeUsesInput(code)) {
+      toast({
+        title: "Use the console for input()",
+        description:
+          "“Check visible tests” cannot type interactively. Use Run in console below, or remove input() if this lesson does not need it.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setLoading("tests");
     try {
       const res = await apiFetch<{ results: typeof runResults }>(`/lessons/${slug}/exercise/run`, {
         method: "POST",
@@ -41,13 +67,21 @@ export function LessonExercise({ slug, challenge, savedCode, requirements, onPas
       });
       setRunResults(res.results);
     } catch (e: unknown) {
-      toast({ title: "Run failed", description: (e as Error).message, variant: "destructive" });
+      toast({ title: "Test check failed", description: (e as Error).message, variant: "destructive" });
     } finally {
       setLoading(null);
     }
   };
 
   const submit = async () => {
+    if (codeUsesInput(code) && noInputRequired) {
+      toast({
+        title: "Remove input() for this challenge",
+        description: challenge.constraints?.find((c) => /no input/i.test(c)) || "This exercise does not use input().",
+        variant: "destructive",
+      });
+      return;
+    }
     setLoading("submit");
     try {
       const res = await apiFetch<{
@@ -115,16 +149,27 @@ export function LessonExercise({ slug, challenge, savedCode, requirements, onPas
       </div>
 
       <div className="mb-4">
-        <p className="text-xs font-medium text-muted-foreground mb-2">Interactive console (try your code)</p>
-        <InteractiveTerminal code={code} height={200} title="Lesson console" />
+        <p className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1">
+          <Terminal className="w-3.5 h-3.5" /> Interactive console — same as Compiler page
+        </p>
+        <InteractiveTerminal ref={terminalRef} code={code} height={200} title="Lesson console" />
       </div>
 
       <div className="flex flex-wrap gap-2 mb-3">
-        <Button size="sm" onClick={run} disabled={loading !== null} className="gap-1">
-          <Play className="w-4 h-4" /> {loading === "run" ? "Running..." : "Run code"}
+        <Button size="sm" onClick={runInConsole} disabled={consoleRunning || loading !== null} className="gap-1">
+          <Play className="w-4 h-4" /> {consoleRunning ? "Running…" : "Run in console"}
         </Button>
-        <Button size="sm" variant="default" onClick={submit} disabled={loading !== null} className="gap-1">
-          <Send className="w-4 h-4" /> {loading === "submit" ? "Checking..." : "Submit solution"}
+        <Button
+          size="sm"
+          variant="secondary"
+          onClick={checkTests}
+          disabled={loading !== null || consoleRunning}
+          className="gap-1"
+        >
+          <CheckCircle2 className="w-4 h-4" /> {loading === "tests" ? "Checking…" : "Check visible tests"}
+        </Button>
+        <Button size="sm" variant="default" onClick={submit} disabled={loading !== null || consoleRunning} className="gap-1">
+          <Send className="w-4 h-4" /> {loading === "submit" ? "Checking…" : "Submit solution"}
         </Button>
         <Button
           size="sm"
@@ -149,7 +194,7 @@ export function LessonExercise({ slug, challenge, savedCode, requirements, onPas
 
       {runResults.length > 0 && (
         <div className="space-y-2 mb-3">
-          <p className="text-xs font-medium">Run output (visible tests)</p>
+          <p className="text-xs font-medium">Automated test results (visible tests only)</p>
           {runResults.map((r, i) => (
             <div key={i} className={`text-xs p-2 rounded-lg ${r.passed ? "bg-primary/10" : "bg-destructive/10"}`}>
               {r.passed ? <CheckCircle2 className="w-3 h-3 inline mr-1" /> : <XCircle className="w-3 h-3 inline mr-1" />}

@@ -129,7 +129,7 @@ In **Environment** tab, add:
 | `GEMINI_API_KEY` | Alternative — [Google AI Studio](https://aistudio.google.com/apikey) |
 | `OPENAI_API_KEY` | Paid OpenAI (optional) |
 | `AI_PROVIDER` | `auto` \| `openrouter` \| `gemini` \| `openai` |
-| `AI_MODEL` | e.g. `openai/gpt-4o-mini` or `gemini-2.0-flash` |
+| `AI_MODEL` | Default: `google/gemma-2-9b-it:free` (OpenRouter free). Or `meta-llama/llama-3.2-3b-instruct:free` |
 
 Verify AI after deploy: `GET /api/health` includes `ai.enabled: true`, or log in and open **AI Assistant** (badge shows “Live AI”).
 
