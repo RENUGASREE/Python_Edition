@@ -7,8 +7,8 @@ import { Layout } from "@/components/Layout";
 import { GlassCard } from "@/components/GlassCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useTheme } from "@/components/ThemeProvider";
 import { apiFetch } from "@/lib/api";
-import Editor from "@monaco-editor/react";
 
 type Mode = "tutor" | "hint" | "debug" | "revision";
 type Msg = { role: "user" | "assistant"; content: string };
@@ -34,6 +34,7 @@ export default function Assistant() {
   const [provider, setProvider] = useState<string | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
   const qc = useQueryClient();
+  const { theme } = useTheme();
 
   useQuery({
     queryKey: ["ai-history"],
@@ -136,35 +137,10 @@ export default function Assistant() {
                 className={`max-w-[90%] p-3 rounded-2xl text-sm ${
                   m.role === "user"
                     ? "ml-auto bg-primary text-primary-foreground"
-                    : "bg-muted/50 prose prose-sm max-w-none"
+                    : `bg-muted/50 prose prose-sm max-w-none ${theme === "dark" ? "prose-invert" : ""}`
                 }`}
               >
-                {m.role === "assistant" ? (
-                  <ReactMarkdown
-                    components={{
-                      code({ node, className, children, ...props }) {
-                        const match = /language-(\w+)/.exec(className || "");
-                        return match ? (
-                          <Editor
-                            height="150px"
-                            defaultLanguage={match[1]}
-                            theme="vs-dark"
-                            value={String(children).replace(/\n$/, "")}
-                            options={{ readOnly: true, minimap: { enabled: false } }}
-                          />
-                        ) : (
-                          <code className={className} {...props}>
-                            {children}
-                          </code>
-                        );
-                      },
-                    }}
-                  >
-                    {m.content}
-                  </ReactMarkdown>
-                ) : (
-                  m.content
-                )}
+                {m.role === "assistant" ? <ReactMarkdown>{m.content}</ReactMarkdown> : m.content}
               </motion.div>
             ))}
           </AnimatePresence>

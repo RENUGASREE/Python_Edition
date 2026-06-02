@@ -3,7 +3,6 @@ import Editor from "@monaco-editor/react";
 import { Play, Send, Lightbulb, CheckCircle2, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { GlassCard } from "@/components/GlassCard";
-import InteractiveTerminal from "@/components/InteractiveTerminal";
 import { apiFetch } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
 import type { CodingChallenge, LessonRequirements } from "@/types";
@@ -20,14 +19,32 @@ export function LessonExercise({ slug, challenge, savedCode, requirements, onPas
   const { toast } = useToast();
   const [code, setCode] = useState(savedCode || challenge.starterCode);
   const [hintIndex, setHintIndex] = useState(0);
+  const [runResults, setRunResults] = useState<
+    { passed: boolean; output?: string; error?: string; expected?: string }[]
+  >([]);
   const [submitResults, setSubmitResults] = useState<
     { passed: boolean; hidden?: boolean; error?: string; expected?: string }[]
   >([]);
-  const [loading, setLoading] = useState<"submit" | null>(null);
+  const [loading, setLoading] = useState<"run" | "submit" | null>(null);
 
   useEffect(() => {
     setCode(savedCode || challenge.starterCode);
   }, [savedCode, challenge.starterCode]);
+
+  const run = async () => {
+    setLoading("run");
+    try {
+      const res = await apiFetch<{ results: typeof runResults }>(`/lessons/${slug}/exercise/run`, {
+        method: "POST",
+        body: JSON.stringify({ code }),
+      });
+      setRunResults(res.results);
+    } catch (e: unknown) {
+      toast({ title: "Run failed", description: (e as Error).message, variant: "destructive" });
+    } finally {
+      setLoading(null);
+    }
+  };
 
   const submit = async () => {
     setLoading("submit");
@@ -95,12 +112,11 @@ export function LessonExercise({ slug, challenge, savedCode, requirements, onPas
       <div className="rounded-xl overflow-hidden border border-border mb-3">
         <Editor height="220px" defaultLanguage="python" theme="vs-dark" value={code} onChange={(v) => setCode(v || "")} />
       </div>
-      
-      <div className="h-64 mb-3">
-        <InteractiveTerminal code={code} />
-      </div>
 
       <div className="flex flex-wrap gap-2 mb-3">
+        <Button size="sm" onClick={run} disabled={loading !== null} className="gap-1">
+          <Play className="w-4 h-4" /> {loading === "run" ? "Running..." : "Run code"}
+        </Button>
         <Button size="sm" variant="default" onClick={submit} disabled={loading !== null} className="gap-1">
           <Send className="w-4 h-4" /> {loading === "submit" ? "Checking..." : "Submit solution"}
         </Button>
@@ -123,6 +139,18 @@ export function LessonExercise({ slug, challenge, savedCode, requirements, onPas
             </span>
           ))}
         </p>
+      )}
+
+      {runResults.length > 0 && (
+        <div className="space-y-2 mb-3">
+          <p className="text-xs font-medium">Run output (visible tests)</p>
+          {runResults.map((r, i) => (
+            <div key={i} className={`text-xs p-2 rounded-lg ${r.passed ? "bg-primary/10" : "bg-destructive/10"}`}>
+              {r.passed ? <CheckCircle2 className="w-3 h-3 inline mr-1" /> : <XCircle className="w-3 h-3 inline mr-1" />}
+              Expected: {r.expected} | Got: {r.output || r.error}
+            </div>
+          ))}
+        </div>
       )}
 
       {submitResults.length > 0 && (

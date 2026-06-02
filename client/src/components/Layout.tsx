@@ -1,6 +1,7 @@
 import { ReactNode } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
+import { useTheme } from "@/components/ThemeProvider";
 import {
   LayoutDashboard,
   BookOpen,
@@ -15,6 +16,8 @@ import {
   X,
   User,
   Terminal,
+  Sun,
+  Moon,
   Zap,
 } from "lucide-react";
 import { useState } from "react";
@@ -28,6 +31,7 @@ export function Layout({ children }: LayoutProps) {
   const [open, setOpen] = useState(false);
   const { user, logout } = useAuth();
   const [location] = useLocation();
+  const { theme, toggle } = useTheme();
 
   const navItems = [
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -50,6 +54,13 @@ export function Layout({ children }: LayoutProps) {
           <span>Python Edition</span>
         </div>
         <div className="flex gap-2">
+          <button
+            onClick={toggle}
+            className="p-2 rounded-lg hover:bg-sidebar-accent text-muted-foreground hover:text-foreground"
+            aria-label="Toggle theme"
+          >
+            {theme === "dark" ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+          </button>
           <button onClick={() => setOpen(!open)} className="p-2">
             {open ? <X /> : <Menu />}
           </button>
@@ -99,6 +110,15 @@ export function Layout({ children }: LayoutProps) {
           </nav>
 
           <div className="border-t border-sidebar-border pt-4 space-y-2">
+            <div className="hidden md:flex justify-end">
+              <button
+                onClick={toggle}
+                className="p-2 rounded-lg hover:bg-sidebar-accent text-muted-foreground hover:text-foreground"
+                aria-label="Toggle theme"
+              >
+                {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+              </button>
+            </div>
             <div className="flex items-center gap-3 px-2 py-2">
               <div className="w-9 h-9 rounded-full bg-primary/20 flex items-center justify-center">
                 <User className="w-4 h-4 text-primary" />
