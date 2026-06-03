@@ -32,6 +32,10 @@ const quizQuestionSchema = new mongoose.Schema(
     options: [String],
     answer: String,
     explanation: String,
+    /** IRT item difficulty (b); auto-derived from lesson if omitted */
+    itemDifficulty: { type: Number },
+    /** IRT discrimination (a); default ~1.1 */
+    discrimination: { type: Number },
   },
   { _id: false }
 );

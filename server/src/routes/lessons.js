@@ -3,7 +3,15 @@ import Lesson from "../models/Lesson.js";
 import Progress from "../models/Progress.js";
 import User from "../models/User.js";
 import { protect, adminOnly } from "../middleware/auth.js";
-import { getRecommendations, computeSkillLevel } from "../utils/adaptive.js";
+import { computeSkillLevel } from "../utils/adaptive.js";
+import {
+  getAdaptivePlan,
+  getOrCreateProfile,
+  getLessonAdaptiveContext,
+  recordQuizAttempt,
+  recordChallengeAttempt,
+  recordLessonComplete,
+} from "../utils/adaptive/engine.js";
 import {
   buildLessonMap,
   sanitizeChallengeForClient,
@@ -66,12 +74,20 @@ router.post(
   })
 );
 
-router.get("/adaptive", protect, async (req, res) => {
-  const lessons = await Lesson.find({ isPublished: true });
-  const progress = await Progress.find({ user: req.user._id }).populate("lesson");
-  const rec = getRecommendations({ lessons, progress, user: req.user });
-  res.json(rec);
-});
+router.get(
+  "/adaptive",
+  protect,
+  asyncHandler(async (req, res) => {
+    const lessons = await Lesson.find({ isPublished: true });
+    const progress = await Progress.find({ user: req.user._id });
+    const plan = await getAdaptivePlan(req.user._id, {
+      lessons,
+      progressRecords: progress,
+      user: req.user,
+    });
+    res.json(plan);
+  })
+);
 
 router.get(
   "/:slug",
@@ -99,11 +115,15 @@ router.get(
     const prevEntry = idx > 0 ? map[idx - 1] : null;
     const nextEntry = idx >= 0 && idx < map.length - 1 ? map[idx + 1] : null;
 
+    const adaptiveProfile = await getOrCreateProfile(req.user._id);
+    const adaptiveContext = getLessonAdaptiveContext(adaptiveProfile, lessonObj);
+
     res.json({
       lesson: lessonObj,
       progress: prog,
       requirements,
       savedCode: prog?.savedCode || lesson.codingChallenge?.starterCode || "",
+      adaptive: adaptiveContext,
       navigation: {
         position: idx >= 0 ? idx + 1 : 0,
         total: map.length,
@@ -205,6 +225,11 @@ router.post(
       await user.save();
     }
 
+    await recordChallengeAttempt(req.user._id, lesson, {
+      passed: allPassed,
+      attemptCount: progress.challengeAttempts,
+    });
+
     res.json({
       passed: allPassed,
       results,
@@ -265,8 +290,23 @@ router.post(
     }
     await user.save();
 
+    const irt = await recordQuizAttempt(req.user._id, lesson, {
+      answers,
+      scorePercent: score,
+      correct,
+      total: lesson.quiz.length,
+    });
+
     const requirements = progressMeetsRequirements(progress);
-    res.json({ score, correct, total: lesson.quiz.length, feedback, progress, requirements });
+    res.json({
+      score,
+      correct,
+      total: lesson.quiz.length,
+      feedback,
+      progress,
+      requirements,
+      adaptive: irt,
+    });
   })
 );
 
@@ -310,6 +350,8 @@ router.post(
       { lessonsCompleted: allProgress.length, $inc: { points: 15 } },
       { upsert: true }
     );
+
+    await recordLessonComplete(req.user._id, lesson);
 
     res.json({ progress, badges: user.badges, xp: user.xp, level: user.level, requirements });
   })

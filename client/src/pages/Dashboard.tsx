@@ -11,7 +11,8 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { useAuth } from "@/hooks/use-auth";
 import { apiFetch } from "@/lib/api";
-import type { Lesson } from "@/types";
+import { AdaptiveLearningPanel } from "@/components/AdaptiveLearningPanel";
+import type { AdaptivePlan } from "@/types";
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -34,12 +35,7 @@ export default function Dashboard() {
 
   const { data: adaptive, isLoading: adaptiveLoading } = useQuery({
     queryKey: ["adaptive"],
-    queryFn: () =>
-      apiFetch<{
-        continueLearning: Lesson;
-        recommended: Lesson[];
-        revisionTopics: Lesson[];
-      }>("/lessons/adaptive"),
+    queryFn: () => apiFetch<AdaptivePlan>("/lessons/adaptive"),
   });
 
   if (progressLoading || adaptiveLoading) {
@@ -96,6 +92,8 @@ export default function Dashboard() {
           <TrackSelector current={user?.selectedTrack} />
         </div>
 
+        <AdaptiveLearningPanel plan={adaptive} />
+
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {[
             { label: "Streak", value: stats?.streak ?? user?.streak ?? 0, icon: Flame, color: "text-orange-400" },
@@ -122,7 +120,10 @@ export default function Dashboard() {
         {adaptive?.continueLearning && (
           <GlassCard className="p-6">
             <h2 className="font-semibold mb-2">Continue learning</h2>
-            <p className="text-muted-foreground text-sm mb-4">{adaptive.continueLearning.title}</p>
+            <p className="text-muted-foreground text-sm mb-1">{adaptive.continueLearning.title}</p>
+            {adaptive.continueLearning.reason && (
+              <p className="text-xs text-primary mb-4">{adaptive.continueLearning.reason}</p>
+            )}
             <Link href={`/lessons/${adaptive.continueLearning.slug}`}>
               <Button className="gap-2">
                 Resume lesson <ArrowRight className="w-4 h-4" />

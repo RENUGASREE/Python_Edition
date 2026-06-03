@@ -6,6 +6,7 @@ import { GlassCard } from "@/components/GlassCard";
 import { InteractiveTerminal, type InteractiveTerminalHandle } from "@/components/InteractiveTerminal";
 import { apiFetch } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
+import { useQueryClient } from "@tanstack/react-query";
 import type { CodingChallenge, LessonRequirements } from "@/types";
 
 interface Props {
@@ -22,6 +23,7 @@ function codeUsesInput(code: string) {
 
 export function LessonExercise({ slug, challenge, savedCode, requirements, onPassed }: Props) {
   const { toast } = useToast();
+  const qc = useQueryClient();
   const [code, setCode] = useState(savedCode || challenge.starterCode);
   const [hintIndex, setHintIndex] = useState(0);
   const [runResults, setRunResults] = useState<
@@ -97,6 +99,7 @@ export function LessonExercise({ slug, challenge, savedCode, requirements, onPas
       if (res.passed) {
         toast({ title: "Challenge passed!", description: `+${res.xpAwarded || challenge.xpReward} XP` });
         onPassed();
+      qc.invalidateQueries({ queryKey: ["adaptive"] });
       } else {
         toast({ title: "Not yet", description: "Some tests failed. Check output below.", variant: "destructive" });
       }

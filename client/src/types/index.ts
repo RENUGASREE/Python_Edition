@@ -101,6 +101,46 @@ export interface Project {
   tags: string[];
 }
 
+export interface AdaptivePlan {
+  profile: {
+    abilityTheta: number;
+    targetDifficulty: string;
+    skillLevel: string;
+    remediationCount?: number;
+  };
+  irt?: { description: string; theta: number; expectedPerformance: number };
+  spacedRepetition?: {
+    dueNow: number;
+    dueSoon: number;
+    schedule: { slug: string; title: string; nextReviewAt: string; retention?: number }[];
+  };
+  personalizedPath?: {
+    slug: string;
+    title: string;
+    type: string;
+    reason: string;
+    unlocked: boolean;
+    completed?: boolean;
+    difficulty?: string;
+  }[];
+  continueLearning?: { slug: string; title: string; category?: string; reason?: string };
+  recommended?: Lesson[];
+  revisionTopics?: Lesson[];
+  remediation?: { slug: string; title: string; type: string; reason: string }[];
+  suggestEasier?: boolean;
+  suggestHarder?: boolean;
+  recentMistakeCount?: number;
+}
+
+export interface LessonAdaptiveContext {
+  targetDifficulty: string;
+  abilityTheta: number;
+  topicMastery: number;
+  difficultyAdjustment: "challenging" | "review" | "optimal";
+  predictedQuizScore: number;
+  perItemDifficulty?: { index: number; difficulty: number; passProbability: number }[];
+}
+
 export interface Challenge {
   _id: string;
   title: string;

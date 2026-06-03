@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { PageLoader } from "@/components/PageLoader";
 import { apiFetch } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
-import type { Lesson as LessonType, LessonRequirements } from "@/types";
+import type { Lesson as LessonType, LessonRequirements, LessonAdaptiveContext } from "@/types";
 
 export default function LessonPage() {
   const [, params] = useRoute("/lessons/:slug");
@@ -29,6 +29,7 @@ export default function LessonPage() {
         lesson: LessonType;
         savedCode: string;
         requirements: LessonRequirements;
+        adaptive?: LessonAdaptiveContext;
         navigation?: {
           position: number;
           total: number;
@@ -56,6 +57,7 @@ export default function LessonPage() {
       setQuizResult({ score: res.score });
       setRequirements(res.requirements);
       qc.invalidateQueries({ queryKey: ["lesson-map"] });
+      qc.invalidateQueries({ queryKey: ["adaptive"] });
       toast({
         title: `Quiz: ${res.score}%`,
         description: res.requirements.quizPassed ? "Quiz requirement met!" : "Need 70% to complete lesson.",
@@ -169,6 +171,27 @@ export default function LessonPage() {
             </Button>
           </div>
         </div>
+
+        {data?.adaptive && (
+          <GlassCard className="p-4 mb-6 border-primary/15">
+            <p className="text-xs font-medium text-primary mb-2">Adaptive targeting (live)</p>
+            <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
+              <span>
+                Your level: <strong className="text-foreground">{data.adaptive.targetDifficulty}</strong>
+              </span>
+              <span>
+                This lesson:{" "}
+                <strong className="text-foreground capitalize">{data.adaptive.difficultyAdjustment}</strong>
+              </span>
+              <span>
+                Predicted quiz: <strong className="text-foreground">{data.adaptive.predictedQuizScore}%</strong>
+              </span>
+              <span>
+                Topic mastery: <strong className="text-foreground">{data.adaptive.topicMastery.toFixed(2)}</strong>
+              </span>
+            </div>
+          </GlassCard>
+        )}
 
         {req && (
           <GlassCard className="p-4 mb-6 flex flex-wrap gap-4 text-sm">

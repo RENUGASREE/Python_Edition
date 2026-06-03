@@ -11,6 +11,7 @@ import {
   streamChatCompletion,
   probeAiConnection,
 } from "../utils/llm.js";
+import { getOrCreateProfile } from "../utils/adaptive/engine.js";
 
 const router = Router();
 
@@ -121,6 +122,24 @@ async function buildMessages(req, { message, lessonSlug, mode }) {
   }
   contextLines.push(`User skill: ${req.user?.performance?.skillLevel || "beginner"}.`);
   contextLines.push(`Mode: ${mode}.`);
+
+  try {
+    const ap = await getOrCreateProfile(req.user._id);
+    contextLines.push(
+      `Adaptive engine: ability θ=${ap.abilityTheta.toFixed(2)}, target difficulty=${ap.targetDifficulty}, ` +
+        `remediation events=${ap.remediationCount || 0}. ` +
+        `Use this to personalize pacing; suggest revision when θ is low on a topic.`
+    );
+    if (ap.topicMastery?.length) {
+      const weak = ap.topicMastery
+        .filter((t) => t.theta < -0.2)
+        .slice(0, 5)
+        .map((t) => t.topicKey);
+      if (weak.length) contextLines.push(`Weak topics (IRT): ${weak.join(", ")}.`);
+    }
+  } catch {
+    /* adaptive optional */
+  }
 
   const messages = [
     { role: "system", content: system },

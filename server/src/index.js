@@ -18,6 +18,7 @@ import leaderboardRoutes from "./routes/leaderboard.js";
 import adminRoutes from "./routes/admin.js";
 import aiRoutes from "./routes/ai.js";
 import profileRoutes from "./routes/profile.js";
+import adaptiveRoutes from "./routes/adaptive.js";
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -77,6 +78,7 @@ app.use("/api/leaderboard", leaderboardRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/ai", aiRoutes);
 app.use("/api/profile", profileRoutes);
+app.use("/api/adaptive", adaptiveRoutes);
 
 app.use("/api/*", (_req, res) => res.status(404).json({ message: "API route not found" }));
 
