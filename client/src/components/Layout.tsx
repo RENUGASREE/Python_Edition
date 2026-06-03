@@ -64,8 +64,8 @@ export function Layout({ children }: LayoutProps) {
             </div>
             <div>
               <div>Python Edition</div>
-              <div className="text-[10px] font-normal text-muted-foreground tracking-wide">
-                Adaptive Learning
+              <div className="text-[10px] font-normal text-muted-foreground tracking-wide leading-tight">
+                Adaptive &amp; Interactive Learning Assistant
               </div>
             </div>
           </div>

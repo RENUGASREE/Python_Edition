@@ -47,7 +47,7 @@ export default function Assistant() {
         hint: string;
         defaultOpenRouterModel?: string;
         probe?: { ok: boolean; error?: string; model?: string; provider?: string };
-      }>("/ai/status?probe=1"),
+      }>("/ai/status"),
   });
 
   useQuery({
@@ -105,11 +105,15 @@ export default function Assistant() {
             });
           },
           onError: (err) => {
+            const msg = String(err);
+            const friendly = msg.includes("429") || msg.toLowerCase().includes("rate limit")
+              ? "Free AI is busy right now. Wait about 30 seconds and try again. For reliability, add **GEMINI_API_KEY** on your Render API service as a backup."
+              : `Sorry — ${msg}`;
             setMessages((m) => {
               const copy = [...m];
               copy[copy.length - 1] = {
                 role: "assistant",
-                content: `Sorry — ${err}. Check API keys on the server.`,
+                content: friendly,
                 streaming: false,
               };
               return copy;
@@ -160,7 +164,9 @@ export default function Assistant() {
                   ? "Invalid OpenRouter key — create new key at openrouter.ai/keys, redeploy API"
                   : aiStatus.probe?.error?.includes("404")
                     ? "Model not found — set AI_MODEL=meta-llama/llama-3.2-3b-instruct:free on API, redeploy"
-                    : `AI failed — ${aiStatus.probe?.error?.slice(0, 100) || "check model/credits"}`}
+                    : aiStatus.probe?.error?.includes("429") || aiStatus.probe?.error?.includes("rate limit")
+                      ? "Free AI busy — wait 30s, retry, or add GEMINI_API_KEY on API"
+                      : `AI failed — ${aiStatus.probe?.error?.slice(0, 100) || "check model/credits"}`}
               </span>
             ) : (
               <span>

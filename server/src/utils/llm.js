@@ -110,21 +110,62 @@ export function isLlmEnabled() {
   return getAiStatus().enabled;
 }
 
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 function openRouterModelsToTry(primaryModel) {
   const list = [primaryModel, ...OPENROUTER_FALLBACK_MODELS];
   return [...new Set(list.filter(Boolean))];
 }
 
-async function chatOpenAiCompatible(cfg, messages, { stream = false } = {}) {
+function parseRetrySeconds(body) {
+  try {
+    const j = JSON.parse(body);
+    const sec =
+      j?.error?.metadata?.retry_after_seconds ??
+      j?.error?.metadata?.retry_after_seconds_raw;
+    if (typeof sec === "number" && sec > 0) return Math.min(Math.ceil(sec), 60);
+  } catch {
+    /* ignore */
+  }
+  return 3;
+}
+
+function buildOpenRouterHeaders(cfg) {
   const headers = {
     "Content-Type": "application/json",
     Authorization: `Bearer ${cfg.apiKey}`,
   };
   if (cfg.provider === "openrouter") {
-    if (process.env.OPENROUTER_SITE_URL) headers["HTTP-Referer"] = process.env.OPENROUTER_SITE_URL;
-    if (process.env.OPENROUTER_APP_NAME) headers["X-Title"] = process.env.OPENROUTER_APP_NAME;
+    headers["HTTP-Referer"] =
+      process.env.OPENROUTER_SITE_URL || "https://python-edition.onrender.com";
+    headers["X-Title"] = process.env.OPENROUTER_APP_NAME || "Python Edition";
   }
+  return headers;
+}
 
+function formatAiError(lastStatus, lastBody, models) {
+  if (lastStatus === 401) {
+    return (
+      "OpenRouter rejected your API key (401). Create a new key at https://openrouter.ai/keys, " +
+      "set OPENROUTER_API_KEY on the API service (no quotes), then redeploy."
+    );
+  }
+  if (lastStatus === 404) {
+    return `No OpenRouter model available (tried: ${models.join(", ")}). Set AI_MODEL=meta-llama/llama-3.2-3b-instruct:free on the API.`;
+  }
+  if (lastStatus === 429) {
+    return (
+      "Free AI models are busy (rate limit). Wait ~30 seconds and try again, set GEMINI_API_KEY as backup on the API, " +
+      "or add a small credit balance on OpenRouter for higher limits."
+    );
+  }
+  return `AI request failed (${lastStatus}): ${lastBody.slice(0, 280)}`;
+}
+
+async function chatOpenAiCompatible(cfg, messages, { stream = false } = {}) {
+  const headers = buildOpenRouterHeaders(cfg);
   const models =
     cfg.provider === "openrouter" ? openRouterModelsToTry(cfg.model) : [cfg.model];
 
@@ -132,46 +173,72 @@ async function chatOpenAiCompatible(cfg, messages, { stream = false } = {}) {
   let lastStatus = 0;
 
   for (const model of models) {
-    const resp = await fetch(`${cfg.baseUrl}/chat/completions`, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({
-        model,
-        messages,
-        temperature: cfg.temperature,
-        max_tokens: cfg.maxTokens,
-        stream,
-      }),
-    });
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const resp = await fetch(`${cfg.baseUrl}/chat/completions`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          model,
+          messages,
+          temperature: cfg.temperature,
+          max_tokens: cfg.maxTokens,
+          stream,
+        }),
+      });
 
-    if (resp.ok) {
-      resp._usedModel = model;
-      return resp;
+      if (resp.ok) {
+        resp._usedModel = model;
+        return resp;
+      }
+
+      lastStatus = resp.status;
+      lastBody = await resp.text().catch(() => "");
+
+      if (cfg.provider === "openrouter" && lastStatus === 404) {
+        console.warn(`[ai] OpenRouter model not found: ${model}`);
+        break;
+      }
+
+      if (cfg.provider === "openrouter" && lastStatus === 429) {
+        const waitSec = parseRetrySeconds(lastBody);
+        if (attempt < 2) {
+          console.warn(`[ai] Rate limited on ${model}, retry in ${waitSec}s…`);
+          await sleep(waitSec * 1000);
+          continue;
+        }
+        console.warn(`[ai] Rate limited on ${model}, trying next model…`);
+        break;
+      }
+
+      break;
     }
-
-    lastStatus = resp.status;
-    lastBody = await resp.text().catch(() => "");
-
-    // Try next model only when this model id is invalid / unavailable
-    if (cfg.provider === "openrouter" && resp.status === 404) {
-      console.warn(`[ai] OpenRouter model not found: ${model}, trying fallback…`);
-      continue;
-    }
-    break;
   }
 
-  let message = `AI request failed (${lastStatus}): ${lastBody.slice(0, 400)}`;
-  if (cfg.provider === "openrouter" && lastStatus === 401) {
-    message =
-      "OpenRouter rejected your API key (401). Create a new key at https://openrouter.ai/keys, set OPENROUTER_API_KEY on the API service (no quotes), redeploy.";
-  }
-  if (cfg.provider === "openrouter" && lastStatus === 404) {
-    message =
-      `No OpenRouter model available (tried: ${models.join(", ")}). Set AI_MODEL=meta-llama/llama-3.2-3b-instruct:free on the API service.`;
-  }
-  const err = new Error(message);
-  err.code = "AI_REQUEST_FAILED";
+  const err = new Error(formatAiError(lastStatus, lastBody, models));
+  err.code = lastStatus === 429 ? "AI_RATE_LIMITED" : "AI_REQUEST_FAILED";
   throw err;
+}
+
+function getGeminiFallbackConfig() {
+  const key = trimKey(process.env.GEMINI_API_KEY);
+  if (!key) return null;
+  return {
+    provider: "gemini",
+    apiKey: key,
+    baseUrl: "https://generativelanguage.googleapis.com/v1beta",
+    model: process.env.AI_MODEL?.trim() || "gemini-2.0-flash",
+    temperature: DEFAULTS.temperature,
+    maxTokens: DEFAULTS.maxTokens,
+  };
+}
+
+async function chatWithGeminiFallback(messages, { stream = false } = {}) {
+  const cfg = getGeminiFallbackConfig();
+  if (!cfg) return null;
+  const resp = await chatGemini(cfg, messages, { stream });
+  resp._usedModel = cfg.model;
+  resp._provider = "gemini";
+  return resp;
 }
 
 function toGeminiContents(messages) {
@@ -230,14 +297,26 @@ export async function chatCompletion({ messages }) {
     return { provider: cfg.provider, model: cfg.model, text };
   }
 
-  const resp = await chatOpenAiCompatible(cfg, messages, { stream: false });
-  const data = await resp.json();
-  const text = data?.choices?.[0]?.message?.content;
-  return {
-    provider: cfg.provider,
-    model: resp._usedModel || cfg.model,
-    text: typeof text === "string" ? text : "",
-  };
+  try {
+    const resp = await chatOpenAiCompatible(cfg, messages, { stream: false });
+    const data = await resp.json();
+    const text = data?.choices?.[0]?.message?.content;
+    return {
+      provider: cfg.provider,
+      model: resp._usedModel || cfg.model,
+      text: typeof text === "string" ? text : "",
+    };
+  } catch (e) {
+    if (e.code === "AI_RATE_LIMITED" || e.code === "AI_REQUEST_FAILED") {
+      const geminiResp = await chatWithGeminiFallback(messages, { stream: false });
+      if (geminiResp) {
+        const data = await geminiResp.json();
+        const text = data?.candidates?.[0]?.content?.parts?.map((p) => p.text).join("") || "";
+        return { provider: "gemini", model: geminiResp._usedModel, text };
+      }
+    }
+    throw e;
+  }
 }
 
 /**
@@ -297,7 +376,49 @@ export async function streamChatCompletion({ messages, res }) {
       return { provider: cfg.provider, model: cfg.model, text: full };
     }
 
-    const resp = await chatOpenAiCompatible(cfg, messages, { stream: true });
+    let resp;
+    try {
+      resp = await chatOpenAiCompatible(cfg, messages, { stream: true });
+    } catch (e) {
+      const geminiResp = await chatWithGeminiFallback(messages, { stream: true });
+      if (!geminiResp) throw e;
+      send("meta", { provider: "gemini", model: geminiResp._usedModel });
+      resp = geminiResp;
+    }
+
+    if (resp._provider === "gemini" || cfg.provider === "gemini") {
+      const reader = resp.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let full = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const parts = buffer.split("\n");
+        buffer = parts.pop() || "";
+        for (const line of parts) {
+          if (!line.trim() || line === "[" || line === "]" || line === ",") continue;
+          const cleaned = line.replace(/^,/, "").trim();
+          if (!cleaned.startsWith("{")) continue;
+          try {
+            const json = JSON.parse(cleaned);
+            const chunk = json?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+            if (chunk) {
+              full += chunk;
+              send("token", { text: chunk });
+            }
+          } catch {
+            /* ignore */
+          }
+        }
+      }
+      send("done", { text: full });
+      res.end();
+      return { provider: "gemini", model: resp._usedModel, text: full };
+    }
+
+    send("meta", { provider: cfg.provider, model: resp._usedModel || cfg.model });
     const reader = resp.body.getReader();
     const decoder = new TextDecoder();
     let full = "";
