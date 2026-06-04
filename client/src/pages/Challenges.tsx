@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import Editor from "@monaco-editor/react";
-import { Zap, Search, Filter } from "lucide-react";
+import { Zap, Search, Filter, Trophy, Clock, Target, CheckCircle, XCircle, Flame, Award } from "lucide-react";
 import { Layout } from "@/components/Layout";
 import { GlassCard } from "@/components/GlassCard";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,18 @@ import { InteractiveTerminal } from "@/components/InteractiveTerminal";
 import type { Challenge } from "@/types";
 
 const CATEGORIES = ["beginner", "intermediate", "advanced"] as const;
+
+const DIFFICULTY_COLORS = {
+  easy: "bg-green-500/10 text-green-400 border-green-500/20",
+  medium: "bg-yellow-500/10 text-yellow-400 border-yellow-500/20",
+  hard: "bg-red-500/10 text-red-400 border-red-500/20",
+};
+
+const DIFFICULTY_BADGES = {
+  easy: "Easy",
+  medium: "Medium",
+  hard: "Hard",
+};
 
 export default function Challenges() {
   const { toast } = useToast();
@@ -74,8 +86,8 @@ export default function Challenges() {
     onSuccess: (res) => {
       setLastResult(res);
       toast({
-        title: res.passed ? "Solved!" : "Try again",
-        description: res.passed ? `+${res.pointsAwarded || 0} points` : "Check your logic",
+        title: res.passed ? "🎉 Challenge Solved!" : "Keep trying",
+        description: res.passed ? `+${res.pointsAwarded || 0} XP earned` : "Review the test results and try again",
         variant: res.passed ? "default" : "destructive",
       });
     },
@@ -83,16 +95,23 @@ export default function Challenges() {
 
   return (
     <Layout>
-      <h1 className="text-3xl font-display font-bold flex items-center gap-2 mb-2">
-        <Zap className="text-accent" /> Coding Challenges
-      </h1>
-      <p className="text-muted-foreground mb-6">
-        {stats?.totalSolved ?? 0} solved · Practice by category
-      </p>
+      <div className="mb-8">
+        <h1 className="text-4xl md:text-5xl font-display font-bold flex items-center gap-3 mb-3">
+          <div className="p-3 rounded-2xl bg-accent/10 border border-accent/20">
+            <Zap className="w-8 h-8 text-accent" />
+          </div>
+          Coding Challenges
+        </h1>
+        <p className="text-muted-foreground text-lg">
+          Practice your Python skills with {stats?.totalSolved ?? 0} challenges solved
+        </p>
+      </div>
 
-      <div className="grid md:grid-cols-3 gap-4 mb-6">
+      {/* Category Stats */}
+      <div className="grid md:grid-cols-3 gap-4 mb-8">
         {CATEGORIES.map((cat) => {
           const s = stats?.byCategory?.[cat];
+          const isActive = category === cat;
           return (
             <button
               key={cat}
@@ -100,40 +119,50 @@ export default function Challenges() {
               onClick={() => setCategory(cat)}
               className="text-left w-full"
             >
-            <GlassCard
-              className={`p-4 ${category === cat ? "ring-2 ring-primary" : ""}`}
-            >
-              <p className="font-semibold capitalize">{cat}</p>
-              <p className="text-xs text-muted-foreground mb-2">
-                {s?.solved ?? 0}/{s?.total ?? 0} completed
-              </p>
-              <Progress value={s?.percent ?? 0} className="h-1.5" />
-            </GlassCard>
+              <GlassCard
+                variant={isActive ? "bordered" : "default"}
+                hover
+                className={`p-6 ${isActive ? "border-primary/50" : ""}`}
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <p className="font-bold text-lg capitalize">{cat}</p>
+                  {isActive && <div className="w-2 h-2 rounded-full bg-primary" />}
+                </div>
+                <div className="flex items-end gap-2 mb-3">
+                  <span className="text-3xl font-bold text-primary">{s?.solved ?? 0}</span>
+                  <span className="text-muted-foreground mb-1">/ {s?.total ?? 0}</span>
+                </div>
+                <Progress value={s?.percent ?? 0} className="h-2" />
+                <p className="text-xs text-muted-foreground mt-2">{Math.round(s?.percent ?? 0)}% complete</p>
+              </GlassCard>
             </button>
           );
         })}
       </div>
 
-      <div className="flex gap-2 mb-4">
+      {/* Search and Filter */}
+      <div className="flex gap-3 mb-6">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-2.5 w-4 h-4 text-muted-foreground" />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
           <Input
-            className="pl-9"
-            placeholder="Search challenges..."
+            className="pl-12 h-12 text-base"
+            placeholder="Search challenges by title, type, or description..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <Button variant="outline" size="icon">
-          <Filter className="w-4 h-4" />
+        <Button variant="outline" size="lg" className="px-6">
+          <Filter className="w-5 h-5 mr-2" />
+          Filter
         </Button>
       </div>
 
       {isLoading ? (
         <PageLoader />
       ) : (
-        <div className="grid lg:grid-cols-3 gap-4">
-          <div className="space-y-2 max-h-[520px] overflow-y-auto">
+        <div className="grid lg:grid-cols-3 gap-6">
+          {/* Challenge List */}
+          <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2">
             {filtered.map((c) => (
               <button
                 key={c._id}
@@ -142,77 +171,159 @@ export default function Challenges() {
                   setSelectedId(c._id);
                   setCode(c.starterCode);
                 }}
-                className={`w-full text-left p-4 rounded-xl border transition-colors ${
+                className={`w-full text-left p-5 rounded-2xl border transition-all ${
                   selectedId === c._id || active?._id === c._id
-                    ? "border-primary bg-primary/10"
-                    : "border-border hover:border-primary/30"
+                    ? "border-primary bg-primary/10 shadow-lg shadow-primary/10"
+                    : "border-border hover:border-primary/40 hover:bg-primary/5"
                 }`}
               >
-                <p className="font-medium text-sm">{c.title}</p>
-                <p className="text-xs text-muted-foreground capitalize">
-                  {c.challengeType} · {c.difficulty} · {c.points} pts · ~{c.estimatedMinutes}m
-                </p>
+                <div className="flex items-start justify-between gap-3 mb-2">
+                  <p className="font-semibold text-base">{c.title}</p>
+                  <span className="px-2 py-1 rounded-full text-xs font-semibold bg-accent/10 text-accent">
+                    {c.points} XP
+                  </span>
+                </div>
+                <p className="text-sm text-muted-foreground mb-3 line-clamp-2">{c.description}</p>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className={`px-2 py-1 rounded-lg text-xs font-semibold border ${
+                    DIFFICULTY_COLORS[c.difficulty as keyof typeof DIFFICULTY_COLORS] || DIFFICULTY_COLORS.medium
+                  }`}>
+                    {DIFFICULTY_BADGES[c.difficulty as keyof typeof DIFFICULTY_BADGES] || c.difficulty}
+                  </span>
+                  <span className="text-xs text-muted-foreground capitalize">{c.challengeType}</span>
+                  <span className="text-xs text-muted-foreground flex items-center gap-1">
+                    <Clock className="w-3 h-3" />
+                    ~{c.estimatedMinutes}m
+                  </span>
+                </div>
               </button>
             ))}
           </div>
 
-          <GlassCard className="lg:col-span-2 overflow-hidden">
+          {/* Challenge Editor */}
+          <GlassCard variant="elevated" className="lg:col-span-2 overflow-hidden">
             {active ? (
               <>
-                <div className="p-4 border-b">
-                  <h2 className="font-semibold">{active.title}</h2>
-                  <p className="text-sm text-muted-foreground mt-1">{active.description}</p>
+                <div className="p-6 border-b border-border">
+                  <div className="flex items-start justify-between gap-4 mb-3">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-2">
+                        <h2 className="text-2xl font-bold">{active.title}</h2>
+                        <span className={`px-3 py-1 rounded-full text-sm font-semibold border ${
+                          DIFFICULTY_COLORS[active.difficulty as keyof typeof DIFFICULTY_COLORS] || DIFFICULTY_COLORS.medium
+                        }`}>
+                          {DIFFICULTY_BADGES[active.difficulty as keyof typeof DIFFICULTY_BADGES] || active.difficulty}
+                        </span>
+                      </div>
+                      <p className="text-muted-foreground">{active.description}</p>
+                    </div>
+                    <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-accent/10 border border-accent/20">
+                      <Award className="w-5 h-5 text-accent" />
+                      <span className="font-bold text-accent">{active.points} XP</span>
+                    </div>
+                  </div>
                 </div>
                 <Editor
-                  height="280px"
+                  height="320px"
                   defaultLanguage="python"
                   theme="vs-dark"
                   value={code || active.starterCode}
                   onChange={(v) => setCode(v || "")}
+                  options={{
+                    minimap: { enabled: false },
+                    fontSize: 14,
+                    scrollBeyondLastLine: false,
+                    padding: { top: 16 },
+                  }}
                 />
-                <div className="p-4 border-t border-border">
-                  <p className="text-xs text-muted-foreground mb-2">Run with live input() support before submitting</p>
+                <div className="p-6 border-t border-border">
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="p-2 rounded-lg bg-primary/10">
+                      <Target className="w-4 h-4 text-primary" />
+                    </div>
+                    <p className="text-sm text-muted-foreground">Test your code with live input() support before submitting</p>
+                  </div>
                   <InteractiveTerminal
                     code={code || active.starterCode}
                     height={200}
-                    title="Challenge console"
+                    title="Test Console"
                   />
                 </div>
-                <div className="p-4 pt-0">
-                  <Button onClick={() => submit.mutate(active._id)} disabled={submit.isPending}>
-                    Submit solution
+                <div className="p-6 pt-0">
+                  <Button
+                    size="lg"
+                    onClick={() => submit.mutate(active._id)}
+                    disabled={submit.isPending}
+                    className="w-full sm:w-auto gap-2"
+                  >
+                    <Zap className="w-5 h-5" />
+                    Submit Solution
                   </Button>
                   {lastResult && (
-                    <div className="mt-3 text-sm">
-                      <div className="flex items-center justify-between gap-3">
-                        <span className={lastResult.passed ? "text-primary font-medium" : "text-destructive font-medium"}>
-                          {lastResult.passed ? "All tests passed" : "Some tests failed"}
-                        </span>
-                        <span className="text-muted-foreground">
-                          Score: {lastResult.score}/{lastResult.total} ({lastResult.scorePercent}%)
-                        </span>
+                    <div className="mt-6 space-y-4">
+                      <div className={`p-4 rounded-xl border ${
+                        lastResult.passed
+                          ? "border-primary bg-primary/10"
+                          : "border-destructive bg-destructive/10"
+                      }`}>
+                        <div className="flex items-center justify-between gap-4">
+                          <div className="flex items-center gap-3">
+                            {lastResult.passed ? (
+                              <CheckCircle className="w-6 h-6 text-primary" />
+                            ) : (
+                              <XCircle className="w-6 h-6 text-destructive" />
+                            )}
+                            <span className="font-semibold text-lg">
+                              {lastResult.passed ? "All Tests Passed!" : "Some Tests Failed"}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-muted-foreground">Score:</span>
+                            <span className={`font-bold text-xl ${
+                              lastResult.passed ? "text-primary" : "text-destructive"
+                            }`}>
+                              {lastResult.score}/{lastResult.total}
+                            </span>
+                            <span className="text-muted-foreground">({lastResult.scorePercent}%)</span>
+                          </div>
+                        </div>
                       </div>
-                      <div className="mt-3 space-y-2">
+                      <div className="space-y-2">
                         {lastResult.results.map((r, idx) => (
                           <div
                             key={idx}
-                            className={`rounded-lg border px-3 py-2 text-xs font-mono whitespace-pre-wrap ${
-                              r.passed ? "border-primary/30 bg-primary/5" : "border-destructive/30 bg-destructive/5"
+                            className={`rounded-xl border px-4 py-3 text-sm font-mono whitespace-pre-wrap ${
+                              r.passed
+                                ? "border-primary/30 bg-primary/5"
+                                : "border-destructive/30 bg-destructive/5"
                             }`}
                           >
-                            <div className="flex items-center justify-between gap-2 mb-1 font-sans text-[11px]">
-                              <span className="text-muted-foreground">
-                                Test {idx + 1} {r.hidden ? "(hidden)" : "(visible)"}
-                              </span>
-                              <span className={r.passed ? "text-primary" : "text-destructive"}>
+                            <div className="flex items-center justify-between gap-2 mb-2 font-sans">
+                              <div className="flex items-center gap-2">
+                                <span className="text-muted-foreground">Test Case {idx + 1}</span>
+                                {r.hidden && (
+                                  <span className="px-2 py-0.5 rounded-full text-xs bg-muted/50 text-muted-foreground">
+                                    Hidden
+                                  </span>
+                                )}
+                              </div>
+                              <span className={`px-2 py-1 rounded-lg text-xs font-semibold ${
+                                r.passed
+                                  ? "bg-primary/20 text-primary"
+                                  : "bg-destructive/20 text-destructive"
+                              }`}>
                                 {r.passed ? "PASS" : "FAIL"}
                               </span>
                             </div>
-                            {r.error ? <span className="text-destructive">{r.error}</span> : r.output || "(no output)"}
+                            {r.error ? (
+                              <span className="text-destructive">{r.error}</span>
+                            ) : (
+                              <span className="text-muted-foreground">{r.output || "(no output)"}</span>
+                            )}
                           </div>
                         ))}
-                        <p className="text-xs text-muted-foreground">
-                          Hidden tests help prevent hardcoding. Focus on correct logic for all inputs.
+                        <p className="text-xs text-muted-foreground mt-4 p-3 rounded-lg bg-muted/30">
+                          💡 Hidden tests help prevent hardcoding. Focus on writing correct logic that works for all possible inputs.
                         </p>
                       </div>
                     </div>
@@ -220,20 +331,39 @@ export default function Challenges() {
                 </div>
               </>
             ) : (
-              <p className="p-8 text-muted-foreground">No challenges in this category</p>
+              <div className="p-12 text-center">
+                <div className="p-4 rounded-full bg-muted/10 w-fit mx-auto mb-4">
+                  <Zap className="w-8 h-8 text-muted-foreground" />
+                </div>
+                <p className="text-muted-foreground">No challenges in this category</p>
+              </div>
             )}
           </GlassCard>
         </div>
       )}
 
+      {/* Recently Solved */}
       {stats?.recent && stats.recent.length > 0 && (
-        <GlassCard className="p-4 mt-8">
-          <h3 className="font-semibold mb-2">Recently solved</h3>
-          <div className="flex flex-wrap gap-2">
+        <GlassCard variant="elevated" className="p-6 mt-8">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-3 rounded-xl bg-primary/10 border border-primary/20">
+              <Flame className="w-6 h-6 text-primary" />
+            </div>
+            <div>
+              <h3 className="font-bold text-lg">Recently Solved</h3>
+              <p className="text-sm text-muted-foreground">Your latest achievements</p>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-3">
             {stats.recent.map((c) => (
-              <span key={c._id} className="text-xs px-2 py-1 rounded-full bg-primary/15 text-primary">
-                {c.title}
-              </span>
+              <div
+                key={c._id}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary/10 border border-primary/20"
+              >
+                <CheckCircle className="w-4 h-4 text-primary" />
+                <span className="font-medium text-sm">{c.title}</span>
+                <span className="text-xs text-primary font-semibold">+{c.points} XP</span>
+              </div>
             ))}
           </div>
         </GlassCard>

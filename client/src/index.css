@@ -6,7 +6,7 @@
 
 :root,
 .dark {
-  /* Modern Python-inspired Palette */
+  /* Premium Dark Theme - Python-inspired Palette */
   --background: 222 47% 11%;     /* Dark Blue-Gray */
   --foreground: 210 40% 98%;     /* Off-white */
   
@@ -18,8 +18,20 @@
   --popover-foreground: 210 40% 98%;
   --popover-border: 217 33% 24%;
   
-  --primary: 142 71% 45%;        /* Python Green-ish/Emerald */
+  /* Primary Color Scale - Emerald/Python Green */
+  --primary: 142 71% 45%;
   --primary-foreground: 144 100% 11%;
+  --primary-50: 142 71% 97%;
+  --primary-100: 142 71% 93%;
+  --primary-200: 142 71% 85%;
+  --primary-300: 142 71% 75%;
+  --primary-400: 142 71% 60%;
+  --primary-500: 142 71% 45%;
+  --primary-600: 142 71% 35%;
+  --primary-700: 142 71% 28%;
+  --primary-800: 142 71% 22%;
+  --primary-900: 142 71% 18%;
+  --primary-950: 142 71% 12%;
   
   --secondary: 217 33% 17%;
   --secondary-foreground: 210 40% 98%;
@@ -39,10 +51,17 @@
   
   --radius: 0.75rem;
   
+  /* Premium Gradients */
+  --gradient-from: 142 71% 45%;
+  --gradient-via: 199 89% 56%;
+  --gradient-to: 262 83% 66%;
+  
+  /* Font Families */
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-serif: 'Georgia', serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
   --font-display: 'Outfit', sans-serif;
-  --font-body: 'Inter', sans-serif;
-  --font-code: 'JetBrains Mono', monospace;
-
+  
   /* Sidebar */
   --sidebar: 222 47% 11%;
   --sidebar-foreground: 210 40% 98%;
