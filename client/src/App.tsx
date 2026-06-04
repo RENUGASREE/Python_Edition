@@ -24,6 +24,8 @@ import Assistant from "@/pages/Assistant";
 import Admin from "@/pages/Admin";
 import AdminLessons from "@/pages/AdminLessons";
 import Profile from "@/pages/Profile";
+import ReviewCenter from "@/pages/ReviewCenter";
+import AdaptiveExplained from "@/pages/AdaptiveExplained";
 import NotFound from "@/pages/NotFound";
 
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
@@ -73,6 +75,8 @@ function Router() {
       <Route path="/leaderboard">{() => <Redirect to="/dashboard" />}</Route>
       <Route path="/assistant">{() => <ProtectedRoute component={Assistant} />}</Route>
       <Route path="/profile">{() => <ProtectedRoute component={Profile} />}</Route>
+      <Route path="/review-center">{() => <ProtectedRoute component={ReviewCenter} />}</Route>
+      <Route path="/adaptive-explained">{() => <ProtectedRoute component={AdaptiveExplained} />}</Route>
       <Route path="/admin">{() => <AdminRoute component={Admin} />}</Route>
       <Route path="/admin/lessons">{() => <AdminRoute component={AdminLessons} />}</Route>
 

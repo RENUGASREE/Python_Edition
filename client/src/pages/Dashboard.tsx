@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { motion } from "framer-motion";
-import { Flame, BookOpen, Target, Clock, ArrowRight, Sparkles, TrendingUp } from "lucide-react";
+import { Flame, BookOpen, Target, Clock, ArrowRight, Sparkles, TrendingUp, Brain, Zap, Calendar } from "lucide-react";
 import { TrackSelector } from "@/components/TrackSelector";
 import { Layout } from "@/components/Layout";
 import { GlassCard } from "@/components/GlassCard";
@@ -36,6 +36,16 @@ export default function Dashboard() {
   const { data: adaptive, isLoading: adaptiveLoading } = useQuery({
     queryKey: ["adaptive"],
     queryFn: () => apiFetch<AdaptivePlan>("/lessons/adaptive"),
+  });
+
+  const { data: velocity } = useQuery({
+    queryKey: ["velocity"],
+    queryFn: () => apiFetch<{ velocityClass: string; weeklyVelocity: number }>("/adaptive/velocity"),
+  });
+
+  const { data: learningStyle } = useQuery({
+    queryKey: ["learning-style"],
+    queryFn: () => apiFetch<{ dominantStyle: string; styleProfile: { theoryOriented: number; handsOn: number } }>("/adaptive/learning-style"),
   });
 
   if (progressLoading || adaptiveLoading) {
@@ -93,6 +103,56 @@ export default function Dashboard() {
         </div>
 
         <AdaptiveLearningPanel plan={adaptive} />
+
+        {/* Learning Velocity & Style */}
+        <div className="grid sm:grid-cols-2 gap-4">
+          {velocity && (
+            <GlassCard className="p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <Zap className="w-5 h-5 text-purple-500" />
+                <h3 className="font-semibold">Learning Velocity</h3>
+              </div>
+              <p className="text-2xl font-bold capitalize mb-1">{velocity.velocityClass || "Stable"}</p>
+              <p className="text-sm text-muted-foreground mb-2">Weekly Score: {velocity.weeklyVelocity || 0}/100</p>
+              <Progress value={velocity.weeklyVelocity || 0} className="h-2" />
+            </GlassCard>
+          )}
+          {learningStyle && (
+            <GlassCard className="p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <Brain className="w-5 h-5 text-pink-500" />
+                <h3 className="font-semibold">Learning Style</h3>
+              </div>
+              <p className="text-2xl font-bold capitalize mb-1">{learningStyle.dominantStyle || "Balanced"}</p>
+              <p className="text-sm text-muted-foreground">
+                Theory: {Math.round((learningStyle.styleProfile?.theoryOriented || 0.5) * 100)}% · Hands-on:{" "}
+                {Math.round((learningStyle.styleProfile?.handsOn || 0.5) * 100)}%
+              </p>
+            </GlassCard>
+          )}
+        </div>
+
+        {/* Review Center Link */}
+        <GlassCard className="p-6 border-primary/30">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-xl bg-primary/15">
+                <Calendar className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <h3 className="font-semibold">Review Center</h3>
+                <p className="text-sm text-muted-foreground">
+                  Intelligent spaced repetition for long-term retention
+                </p>
+              </div>
+            </div>
+            <Link href="/review-center">
+              <Button variant="outline" className="gap-2">
+                Open <ArrowRight className="w-4 h-4" />
+              </Button>
+            </Link>
+          </div>
+        </GlassCard>
 
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {[

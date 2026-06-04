@@ -12,6 +12,11 @@ import {
   probeAiConnection,
 } from "../utils/llm.js";
 import { getOrCreateProfile } from "../utils/adaptive/engine.js";
+import LearningVelocity from "../models/LearningVelocity.js";
+import LearningStyle from "../models/LearningStyle.js";
+import { getVelocityDescription } from "../utils/adaptive/learningVelocity.js";
+import { getStyleBasedRecommendations } from "../utils/adaptive/learningStyle.js";
+import { getWeakTopics } from "../utils/adaptive/knowledgeGraph.js";
 
 const router = Router();
 
@@ -25,7 +30,7 @@ const KNOWLEDGE = {
   oop: "Classes model real objects with attributes and methods.",
 };
 
-function buildReply(message, { lesson, mode, user, progress }) {
+function buildReply(message, { lesson, mode, user, progress, profile, velocity, learningStyle }) {
   const lower = (message || "").toLowerCase();
 
   if (mode === "hint") {
@@ -45,12 +50,29 @@ function buildReply(message, { lesson, mode, user, progress }) {
   }
 
   if (mode === "revision") {
-    const weak = user?.performance?.weakTopics?.slice(0, 3).join(", ") || "recent lessons";
+    const weakTopics = getWeakTopics(profile);
+    const weak = weakTopics.slice(0, 3).map((t) => t.topicKey).join(", ") || "recent lessons";
     return `Revision plan: review ${weak}. Re-do quizzes under 70% and redo coding challenges without peeking at solutions.`;
   }
 
+  if (mode === "explain-mistake") {
+    return "Please share your code and the error you're getting. I'll analyze the mistake and explain what went wrong and how to fix it.";
+  }
+
+  if (mode === "review-code") {
+    return "Please share your code and I'll review it for improvements, best practices, and potential issues.";
+  }
+
+  if (mode === "generate-practice") {
+    return "I'll generate similar practice problems for you. What topic would you like to practice?";
+  }
+
+  if (mode === "quiz-me") {
+    return "I'll quiz you on the current topic. Ready when you are!";
+  }
+
   if (lower.includes("hint") || lower.includes("stuck")) {
-    return buildReply(message, { lesson, mode: "hint", user, progress });
+    return buildReply(message, { lesson, mode: "hint", user, progress, profile, velocity, learningStyle });
   }
 
   for (const [key, text] of Object.entries(KNOWLEDGE)) {
@@ -62,14 +84,16 @@ function buildReply(message, { lesson, mode, user, progress }) {
   }
 
   if (lesson) {
+    const velocityDesc = velocity ? getVelocityDescription(velocity.velocityClass) : "";
     return (
       `You're on **${lesson.title}** (${lesson.difficulty}).\n\n` +
       `${lesson.summary?.slice(0, 250) || ""}\n\n` +
-      `Ask for a **hint**, **debug** help, or **revision** plan. Skill: ${user?.performance?.skillLevel || "beginner"}.`
+      `Skill: ${user?.performance?.skillLevel || "beginner"}. ${velocityDesc}\n\n` +
+      `Ask for a **hint**, **debug** help, **revision** plan, **explain-mistake**, **review-code**, **generate-practice**, or **quiz-me**.`
     );
   }
 
-  return "I'm your Python Edition tutor. Ask about a concept, or open a lesson. Modes: tutor, hint, debug, revision.";
+  return "I'm your Python Edition tutor. Ask about a concept, or open a lesson. Modes: tutor, hint, debug, revision, explain-mistake, review-code, generate-practice, quiz-me.";
 }
 
 router.get(
@@ -98,13 +122,52 @@ async function buildMessages(req, { message, lessonSlug, mode }) {
     .sort({ createdAt: -1 })
     .limit(12);
 
+  // Get adaptive context
+  const profile = await getOrCreateProfile(req.user._id);
+  const velocity = await LearningVelocity.findOne({ user: req.user._id });
+  const learningStyle = await LearningStyle.findOne({ user: req.user._id });
+
+  // Adaptive behavior based on user level
+  const skillLevel = profile.skillLevel || "beginner";
+  const velocityClass = velocity?.velocityClass || "stable";
+  
+  let behaviorInstructions = "";
+  if (velocityClass === "struggling" || skillLevel === "beginner") {
+    behaviorInstructions = "Provide detailed explanations with step-by-step guidance. Use simple language and extra examples. Be patient and encouraging.";
+  } else if (velocityClass === "expert" || skillLevel === "advanced") {
+    behaviorInstructions = "Be concise and direct. Focus on advanced concepts and challenge-oriented coaching. Assume strong foundational knowledge.";
+  } else if (velocityClass === "accelerating") {
+    behaviorInstructions = "Provide balanced explanations with targeted hints. Challenge the user slightly to accelerate learning.";
+  } else {
+    behaviorInstructions = "Provide balanced explanations appropriate for intermediate level. Mix guidance with independence.";
+  }
+
+  // Learning style adaptations
+  let styleInstructions = "";
+  if (learningStyle) {
+    const styleRecs = getStyleBasedRecommendations(learningStyle);
+    if (learningStyle.dominantStyle === "hands-on") {
+      styleInstructions = "Focus on code examples and practical applications. Minimize theory.";
+    } else if (learningStyle.dominantStyle === "theory-oriented") {
+      styleInstructions = "Provide thorough theoretical explanations before showing code.";
+    } else if (learningStyle.dominantStyle === "guided") {
+      styleInstructions = "Offer step-by-step guidance and frequent check-ins.";
+    }
+  }
+
   const system = [
     "You are Python Edition's AI tutor.",
     "Be concise, kind, and accurate.",
+    behaviorInstructions,
+    styleInstructions,
     "Prefer guiding questions and small steps over full solutions.",
     "If mode is 'hint', give a minimal hint (no full solution).",
     "If mode is 'debug', explain the likely error cause and propose 2-4 concrete fixes.",
     "If mode is 'revision', give a short plan: what to review + 2 practice actions.",
+    "If mode is 'explain-mistake', analyze the specific error and explain the root cause.",
+    "If mode is 'review-code', review for best practices, improvements, and potential issues.",
+    "If mode is 'generate-practice', create similar practice problems for the topic.",
+    "If mode is 'quiz-me', generate a quiz question on the current topic.",
     "When code is provided, review it and point out mistakes or improvements.",
     "Use markdown. Use fenced code blocks for Python examples.",
   ].join(" ");
@@ -120,25 +183,30 @@ async function buildMessages(req, { message, lessonSlug, mode }) {
   if (progress) {
     contextLines.push(`Progress: challengePassed=${!!progress.challengePassed}, quizPassed=${!!progress.quizPassed}.`);
   }
-  contextLines.push(`User skill: ${req.user?.performance?.skillLevel || "beginner"}.`);
+  contextLines.push(`User skill: ${skillLevel}.`);
+  contextLines.push(`Velocity class: ${velocityClass}.`);
   contextLines.push(`Mode: ${mode}.`);
 
-  try {
-    const ap = await getOrCreateProfile(req.user._id);
-    contextLines.push(
-      `Adaptive engine: ability θ=${ap.abilityTheta.toFixed(2)}, target difficulty=${ap.targetDifficulty}, ` +
-        `remediation events=${ap.remediationCount || 0}. ` +
-        `Use this to personalize pacing; suggest revision when θ is low on a topic.`
-    );
-    if (ap.topicMastery?.length) {
-      const weak = ap.topicMastery
-        .filter((t) => t.theta < -0.2)
-        .slice(0, 5)
-        .map((t) => t.topicKey);
-      if (weak.length) contextLines.push(`Weak topics (IRT): ${weak.join(", ")}.`);
-    }
-  } catch {
-    /* adaptive optional */
+  // Enhanced adaptive context
+  contextLines.push(
+    `Adaptive engine: ability θ=${profile.abilityTheta.toFixed(2)}, target difficulty=${profile.targetDifficulty}, ` +
+      `remediation events=${profile.remediationCount || 0}.`
+  );
+  
+  if (profile.topicMastery?.length) {
+    const weak = getWeakTopics(profile).slice(0, 5).map((t) => `${t.topicKey}(${t.masteryScore}%)`);
+    if (weak.length) contextLines.push(`Weak topics: ${weak.join(", ")}.`);
+    
+    const strong = profile.topicMastery
+      .filter((t) => t.masteryScore >= 70)
+      .slice(0, 5)
+      .map((t) => `${t.topicKey}(${t.masteryScore}%)`);
+    if (strong.length) contextLines.push(`Strong topics: ${strong.join(", ")}.`);
+  }
+
+  if (learningStyle) {
+    contextLines.push(`Learning style: ${learningStyle.dominantStyle}.`);
+    contextLines.push(`Style profile: theory=${learningStyle.styleProfile.theoryOriented}, hands-on=${learningStyle.styleProfile.handsOn}, guided=${learningStyle.styleProfile.guided}.`);
   }
 
   const messages = [
@@ -150,7 +218,7 @@ async function buildMessages(req, { message, lessonSlug, mode }) {
     { role: "user", content: message },
   ];
 
-  return { messages, lesson, progress, lessonSlug, mode };
+  return { messages, lesson, progress, lessonSlug, mode, profile, velocity, learningStyle };
 }
 
 router.get(
@@ -170,7 +238,7 @@ router.post(
   asyncHandler(async (req, res) => {
     const { message, lessonSlug, mode = "tutor" } = req.body;
     const ctx = await buildMessages(req, { message, lessonSlug, mode });
-    const { lesson, progress } = ctx;
+    const { lesson, progress, profile, velocity, learningStyle } = ctx;
 
     let reply = "";
     let provider = "offline";
@@ -189,7 +257,7 @@ router.post(
     }
 
     if (!reply) {
-      reply = buildReply(message, { lesson, mode, user: req.user, progress });
+      reply = buildReply(message, { lesson, mode, user: req.user, progress, profile, velocity, learningStyle });
     }
 
     await ChatMessage.create({ user: req.user._id, role: "user", content: message, mode, lessonSlug });
@@ -213,12 +281,12 @@ router.post(
   asyncHandler(async (req, res) => {
     const { message, lessonSlug, mode = "tutor" } = req.body;
     const ctx = await buildMessages(req, { message, lessonSlug, mode });
-    const { lesson, progress } = ctx;
+    const { lesson, progress, profile, velocity, learningStyle } = ctx;
 
     await ChatMessage.create({ user: req.user._id, role: "user", content: message, mode, lessonSlug });
 
     if (!isLlmEnabled()) {
-      const reply = buildReply(message, { lesson, mode, user: req.user, progress });
+      const reply = buildReply(message, { lesson, mode, user: req.user, progress, profile, velocity, learningStyle });
       await ChatMessage.create({ user: req.user._id, role: "assistant", content: reply, mode, lessonSlug });
       res.setHeader("Content-Type", "text/event-stream");
       res.write(`event: meta\ndata: ${JSON.stringify({ provider: "offline", model: null })}\n\n`);
@@ -235,7 +303,7 @@ router.post(
       }
     } catch (e) {
       if (!res.headersSent) {
-        const reply = buildReply(message, { lesson, mode, user: req.user, progress });
+        const reply = buildReply(message, { lesson, mode, user: req.user, progress, profile, velocity, learningStyle });
         await ChatMessage.create({ user: req.user._id, role: "assistant", content: reply, mode, lessonSlug });
         res.setHeader("Content-Type", "text/event-stream");
         res.write(`event: meta\ndata: ${JSON.stringify({ provider: "offline", model: null })}\n\n`);

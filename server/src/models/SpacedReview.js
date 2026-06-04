@@ -12,6 +12,12 @@ const spacedReviewSchema = new mongoose.Schema(
     nextReviewAt: { type: Date, required: true },
     lastReviewAt: { type: Date },
     lastQuality: { type: Number, default: 0 },
+    retentionPrediction: { type: Number, default: 100 },
+    confidencePrediction: { type: Number, default: 50 },
+    weakTopicAlert: { type: Boolean, default: false },
+    reviewPriorityScore: { type: Number, default: 0 },
+    historicalRetention: [{ type: Number }],
+    forgettingCurve: { type: Number, default: 0.4 },
   },
   { timestamps: true }
 );

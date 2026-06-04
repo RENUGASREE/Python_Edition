@@ -4,9 +4,16 @@ const topicMasterySchema = new mongoose.Schema(
   {
     topicKey: { type: String, required: true },
     theta: { type: Number, default: 0 },
+    masteryScore: { type: Number, default: 0 },
+    confidenceScore: { type: Number, default: 50 },
+    retentionScore: { type: Number, default: 100 },
+    practiceCount: { type: Number, default: 0 },
+    errorFrequency: { type: Number, default: 0 },
     attempts: { type: Number, default: 0 },
     correct: { type: Number, default: 0 },
     lastUpdated: { type: Date, default: Date.now },
+    lastPracticed: { type: Date, default: Date.now },
+    decayFactor: { type: Number, default: 0.95 },
   },
   { _id: false }
 );

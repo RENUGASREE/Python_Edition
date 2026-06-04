@@ -11,8 +11,15 @@ import {
   probabilityCorrect,
 } from "./irt.js";
 import { quizScoreToQuality, sm2NextInterval, retentionEstimate } from "./spacedRepetition.js";
+import { updateAdvancedSpacedReview, categorizeReviews, predictConfidence } from "./advancedSpacedRepetition.js";
 import { buildPersonalizedPath, rankLessonsByDifficultyFit, topicKeyForLesson } from "./pathPlanner.js";
 import { computeSkillLevel } from "../adaptive.js";
+import {
+  updateTopicMastery,
+  calculateRetentionScore,
+  getReviewPriority,
+  needsReview,
+} from "./masteryEngine.js";
 
 function getQuizItems(lesson) {
   const diff = lesson.difficulty || "easy";
@@ -33,18 +40,33 @@ export async function getOrCreateProfile(userId) {
   return profile;
 }
 
-function upsertTopicMastery(profile, topicKey, deltaCorrect, deltaAttempts) {
+function upsertTopicMastery(profile, topicKey, deltaCorrect, deltaAttempts, isReview = false) {
   const list = profile.topicMastery || [];
   let entry = list.find((m) => m.topicKey === topicKey);
   if (!entry) {
-    entry = { topicKey, theta: 0, attempts: 0, correct: 0, lastUpdated: new Date() };
+    entry = {
+      topicKey,
+      theta: 0,
+      masteryScore: 0,
+      confidenceScore: 50,
+      retentionScore: 100,
+      practiceCount: 0,
+      errorFrequency: 0,
+      attempts: 0,
+      correct: 0,
+      lastUpdated: new Date(),
+      lastPracticed: new Date(),
+      decayFactor: 0.95,
+    };
     list.push(entry);
   }
-  entry.attempts += deltaAttempts;
-  entry.correct += deltaCorrect;
-  const acc = entry.correct / Math.max(entry.attempts, 1);
-  entry.theta = clampTheta((acc - 0.5) * 2.5);
-  entry.lastUpdated = new Date();
+  
+  // Update using the new mastery engine
+  for (let i = 0; i < deltaAttempts; i++) {
+    const isCorrect = i < deltaCorrect;
+    updateTopicMastery(entry, { correct: isCorrect, isReview });
+  }
+  
   profile.topicMastery = list;
 }
 
@@ -102,28 +124,75 @@ export async function recordQuizAttempt(userId, lesson, { answers, scorePercent,
 
   const quality = quizScoreToQuality(scorePercent);
   let review = await SpacedReview.findOne({ user: userId, lesson: lesson._id });
-  const prev = review
-    ? {
-        easeFactor: review.easeFactor,
-        intervalDays: review.intervalDays,
-        repetitions: review.repetitions,
-      }
-    : { easeFactor: 2.5, intervalDays: 0, repetitions: 0 };
+  
+  if (review) {
+    // Use advanced SM-2 with predictions
+    const advancedUpdate = await updateAdvancedSpacedReview(review, quality);
+    const updatedReview = await SpacedReview.findOneAndUpdate(
+      { user: userId, lesson: lesson._id },
+      {
+        ...advancedUpdate,
+        lastReviewAt: new Date(),
+      },
+      { new: true }
+    );
 
-  const next = sm2NextInterval({ ...prev, quality });
+    // Update retention score in topic mastery from spaced repetition data
+    const topicEntry = profile.topicMastery?.find((m) => m.topicKey === topicKey);
+    if (topicEntry && updatedReview) {
+      topicEntry.retentionScore = updatedReview.retentionPrediction;
+      // Recalculate mastery with updated retention
+      topicEntry.masteryScore = Math.round(
+        ((topicEntry.theta + 3) / 6) * 100 * 0.4 +
+          Math.min(100, topicEntry.attempts * 5) * 0.2 +
+          topicEntry.retentionScore * 0.3 +
+          (100 - topicEntry.errorFrequency * 100) * 0.1
+      );
+      
+      // Update weak topic alert
+      const weakAlert = updatedReview.retentionPrediction < 60 || updatedReview.confidencePrediction < 50;
+      updatedReview.weakTopicAlert = weakAlert;
+      await updatedReview.save();
+      await profile.save();
+    }
+  } else {
+    // First review - use standard SM-2
+    const prev = { easeFactor: 2.5, intervalDays: 0, repetitions: 0 };
+    const next = sm2NextInterval({ ...prev, quality });
 
-  await SpacedReview.findOneAndUpdate(
-    { user: userId, lesson: lesson._id },
-    {
-      user: userId,
-      lesson: lesson._id,
-      lessonSlug: lesson.slug,
-      lessonTitle: lesson.title,
-      ...next,
-      lastReviewAt: new Date(),
-    },
-    { upsert: true, new: true }
-  );
+    const updatedReview = await SpacedReview.findOneAndUpdate(
+      { user: userId, lesson: lesson._id },
+      {
+        user: userId,
+        lesson: lesson._id,
+        lessonSlug: lesson.slug,
+        lessonTitle: lesson.title,
+        ...next,
+        lastReviewAt: new Date(),
+        retentionPrediction: 100,
+        confidencePrediction: predictConfidence(quality, next.easeFactor, next.repetitions),
+      },
+      { upsert: true, new: true }
+    );
+
+    // Update retention score in topic mastery from spaced repetition data
+    const topicEntry = profile.topicMastery?.find((m) => m.topicKey === topicKey);
+    if (topicEntry && updatedReview) {
+      topicEntry.retentionScore = calculateRetentionScore(
+        updatedReview.lastReviewAt,
+        updatedReview.intervalDays,
+        topicEntry.decayFactor
+      );
+      // Recalculate mastery with updated retention
+      topicEntry.masteryScore = Math.round(
+        ((topicEntry.theta + 3) / 6) * 100 * 0.4 +
+          Math.min(100, topicEntry.attempts * 5) * 0.2 +
+          topicEntry.retentionScore * 0.3 +
+          (100 - topicEntry.errorFrequency * 100) * 0.1
+      );
+      await profile.save();
+    }
+  }
 
   await rebuildPath(userId);
 
