@@ -74,7 +74,7 @@ export default function ProgressPage() {
       <div className="grid lg:grid-cols-2 gap-6 mb-8">
         <GlassCard variant="elevated" className="p-6">
           <div className="flex items-center gap-3 mb-6">
-            <div className="p-3 rounded-xl bg-primary/10 border border-primary/20">
+            <div className="p-3 rounded-xl bg-gradient-to-br from-primary/20 to-purple-500/10 border border-primary/30">
               <BarChart3 className="w-6 h-6 text-primary" />
             </div>
             <div>
@@ -82,21 +82,31 @@ export default function ProgressPage() {
               <p className="text-sm text-muted-foreground">Your learning momentum</p>
             </div>
           </div>
-          <ResponsiveContainer width="100%" height={260}>
+          <ResponsiveContainer width="100%" height={280}>
             <BarChart data={weekly}>
+              <defs>
+                <linearGradient id="gradientActivity" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#8b5cf6" />
+                  <stop offset="100%" stopColor="#6366f1" />
+                </linearGradient>
+                <linearGradient id="gradientLessons" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#06b6d4" />
+                  <stop offset="100%" stopColor="#0891b2" />
+                </linearGradient>
+              </defs>
               <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
               <XAxis dataKey="day" stroke={axisStroke} fontSize={12} tickLine={false} axisLine={false} />
               <YAxis stroke={axisStroke} fontSize={12} tickLine={false} axisLine={false} />
               <Tooltip contentStyle={tooltipStyle} />
-              <Bar dataKey="activity" fill="hsl(var(--chart-1))" name="Actions" radius={[8, 8, 0, 0]} />
-              <Bar dataKey="lessons" fill="hsl(var(--chart-3))" name="Completed" radius={[8, 8, 0, 0]} />
+              <Bar dataKey="activity" fill="url(#gradientActivity)" name="Actions" radius={[8, 8, 0, 0]} />
+              <Bar dataKey="lessons" fill="url(#gradientLessons)" name="Completed" radius={[8, 8, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </GlassCard>
 
         <GlassCard variant="elevated" className="p-6">
           <div className="flex items-center gap-3 mb-6">
-            <div className="p-3 rounded-xl bg-accent/10 border border-accent/20">
+            <div className="p-3 rounded-xl bg-gradient-to-br from-accent/20 to-orange-500/10 border border-accent/30">
               <Zap className="w-6 h-6 text-accent" />
             </div>
             <div>
@@ -104,24 +114,33 @@ export default function ProgressPage() {
               <p className="text-sm text-muted-foreground">Coding challenge success rate</p>
             </div>
           </div>
-          <ResponsiveContainer width="100%" height={260}>
+          <ResponsiveContainer width="100%" height={280}>
             <AreaChart data={challengeWeekly}>
+              <defs>
+                <linearGradient id="gradientChallenge" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.5} />
+                  <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
+                </linearGradient>
+                <filter id="glowChallenge" x="-20%" y="-20%" width="140%" height="140%">
+                  <feGaussianBlur stdDeviation={4} result="coloredBlur" />
+                  <feMerge>
+                    <feMergeNode in="coloredBlur" />
+                    <feMergeNode in="SourceGraphic" />
+                  </feMerge>
+                </filter>
+              </defs>
               <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
               <XAxis dataKey="day" stroke={axisStroke} fontSize={12} tickLine={false} axisLine={false} />
               <YAxis stroke={axisStroke} fontSize={12} tickLine={false} axisLine={false} />
               <Tooltip contentStyle={tooltipStyle} />
-              <defs>
-                <linearGradient id="colorChallenge" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="hsl(var(--chart-2))" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="hsl(var(--chart-2))" stopOpacity={0} />
-                </linearGradient>
-              </defs>
               <Area
                 type="monotone"
                 dataKey="passed"
-                stroke="hsl(var(--chart-2))"
-                fill="url(#colorChallenge)"
-                strokeWidth={3}
+                stroke="#f59e0b"
+                fill="url(#gradientChallenge)"
+                strokeWidth={4}
+                fillOpacity={1}
+                filter="url(#glowChallenge)"
               />
             </AreaChart>
           </ResponsiveContainer>
@@ -132,7 +151,7 @@ export default function ProgressPage() {
       <div className="grid lg:grid-cols-2 gap-6 mb-8">
         <GlassCard variant="elevated" className="p-6">
           <div className="flex items-center gap-3 mb-6">
-            <div className="p-3 rounded-xl bg-green-500/10 border border-green-500/20">
+            <div className="p-3 rounded-xl bg-gradient-to-br from-green-500/20 to-emerald-500/10 border border-green-500/30">
               <TrendingUp className="w-6 h-6 text-green-400" />
             </div>
             <div>
@@ -140,25 +159,41 @@ export default function ProgressPage() {
               <p className="text-sm text-muted-foreground">Performance over time</p>
             </div>
           </div>
-          <ResponsiveContainer width="100%" height={260}>
+          <ResponsiveContainer width="100%" height={280}>
             <LineChart data={accuracyTrend}>
+              <defs>
+                <linearGradient id="gradientAccuracy" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#10b981" stopOpacity={0.4} />
+                  <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                </linearGradient>
+                <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+                  <feGaussianBlur stdDeviation={3} result="coloredBlur" />
+                  <feMerge>
+                    <feMergeNode in="coloredBlur" />
+                    <feMergeNode in="SourceGraphic" />
+                  </feMerge>
+                </filter>
+              </defs>
               <CartesianGrid strokeDasharray="3 3" stroke={gridStroke} />
               <XAxis dataKey="title" stroke={axisStroke} fontSize={10} tickLine={false} axisLine={false} />
               <YAxis domain={[0, 100]} stroke={axisStroke} fontSize={12} tickLine={false} axisLine={false} />
               <Tooltip contentStyle={tooltipStyle} />
-              <defs>
-                <linearGradient id="colorAccuracy" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="hsl(var(--chart-4))" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="hsl(var(--chart-4))" stopOpacity={0} />
-                </linearGradient>
-              </defs>
+              <Area
+                type="monotone"
+                dataKey="score"
+                stroke="#10b981"
+                fill="url(#gradientAccuracy)"
+                strokeWidth={3}
+                fillOpacity={1}
+              />
               <Line
                 type="monotone"
                 dataKey="score"
-                stroke="hsl(var(--chart-4))"
-                strokeWidth={3}
-                dot={{ r: 4, strokeWidth: 2, stroke: "hsl(var(--chart-4))", fill: "hsl(var(--background))" }}
-                activeDot={{ r: 6, stroke: "hsl(var(--chart-4))", strokeWidth: 3 }}
+                stroke="#10b981"
+                strokeWidth={4}
+                dot={{ r: 5, strokeWidth: 3, stroke: "#10b981", fill: "#0f172a" }}
+                activeDot={{ r: 8, stroke: "#10b981", strokeWidth: 4, fill: "#10b981" }}
+                filter="url(#glow)"
               />
             </LineChart>
           </ResponsiveContainer>
@@ -166,7 +201,7 @@ export default function ProgressPage() {
 
         <GlassCard variant="elevated" className="p-6">
           <div className="flex items-center gap-3 mb-6">
-            <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/20">
+            <div className="p-3 rounded-xl bg-gradient-to-br from-blue-500/20 to-cyan-500/10 border border-blue-500/30">
               <Clock className="w-6 h-6 text-blue-400" />
             </div>
             <div>
@@ -174,12 +209,18 @@ export default function ProgressPage() {
               <p className="text-sm text-muted-foreground">Learning distribution</p>
             </div>
           </div>
-          <ResponsiveContainer width="100%" height={260}>
+          <ResponsiveContainer width="100%" height={280}>
             <BarChart data={topicTime} layout="vertical">
+              <defs>
+                <linearGradient id="gradientTime" x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0%" stopColor="#3b82f6" />
+                  <stop offset="100%" stopColor="#06b6d4" />
+                </linearGradient>
+              </defs>
               <XAxis type="number" stroke={axisStroke} fontSize={12} tickLine={false} axisLine={false} />
               <YAxis dataKey="topic" type="category" width={90} stroke={axisStroke} fontSize={11} tickLine={false} axisLine={false} />
               <Tooltip contentStyle={tooltipStyle} />
-              <Bar dataKey="minutes" fill="hsl(var(--chart-1))" radius={[0, 8, 8, 0]} />
+              <Bar dataKey="minutes" fill="url(#gradientTime)" radius={[0, 8, 8, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </GlassCard>
