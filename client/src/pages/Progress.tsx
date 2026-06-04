@@ -201,33 +201,27 @@ export default function ProgressPage() {
 
         <GlassCard variant="elevated" className="p-6">
           <div className="flex items-center gap-3 mb-6">
-            <div className="p-3 rounded-xl bg-gradient-to-br from-purple-500/20 to-pink-500/10 border border-purple-500/30">
-              <Target className="w-6 h-6 text-purple-400" />
+            <div className="p-3 rounded-xl bg-gradient-to-br from-blue-500/20 to-cyan-500/10 border border-blue-500/30">
+              <Clock className="w-6 h-6 text-blue-400" />
             </div>
             <div>
-              <h2 className="text-xl font-bold">Topic Distribution</h2>
-              <p className="text-sm text-muted-foreground">Learning focus by category</p>
+              <h2 className="text-xl font-bold">Time by Topic</h2>
+              <p className="text-sm text-muted-foreground">Learning distribution</p>
             </div>
           </div>
           <ResponsiveContainer width="100%" height={280}>
-            <PieChart>
-              <Pie
-                data={topicTime}
-                cx="50%"
-                cy="50%"
-                labelLine={false}
-                label
-                outerRadius={80}
-                fill="#8884d8"
-                dataKey="minutes"
-              >
-                {topicTime.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                ))}
-              </Pie>
+            <BarChart data={topicTime} layout="vertical">
+              <defs>
+                <linearGradient id="gradientTime" x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0%" stopColor="#3b82f6" />
+                  <stop offset="100%" stopColor="#06b6d4" />
+                </linearGradient>
+              </defs>
+              <XAxis type="number" stroke={axisStroke} fontSize={12} tickLine={false} axisLine={false} />
+              <YAxis dataKey="topic" type="category" width={90} stroke={axisStroke} fontSize={11} tickLine={false} axisLine={false} />
               <Tooltip contentStyle={tooltipStyle} />
-              <Legend />
-            </PieChart>
+              <Bar dataKey="minutes" fill="url(#gradientTime)" radius={[0, 8, 8, 0]} />
+            </BarChart>
           </ResponsiveContainer>
         </GlassCard>
       </div>
