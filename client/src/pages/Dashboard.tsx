@@ -48,6 +48,11 @@ export default function Dashboard() {
     queryFn: () => apiFetch<{ dominantStyle: string; styleProfile: { theoryOriented: number; handsOn: number } }>("/adaptive/learning-style"),
   });
 
+  const { data: dueReviews } = useQuery({
+    queryKey: ["due-reviews"],
+    queryFn: () => apiFetch<{ reviews: Array<{ lessonSlug: string; lessonTitle: string; priority: string; retention: number; confidence: number }> }>("/reviews/due"),
+  });
+
   if (progressLoading || adaptiveLoading) {
     return (
       <Layout>
@@ -205,9 +210,9 @@ export default function Dashboard() {
           )}
         </div>
 
-        {/* Review Center - Premium Card */}
+        {/* Review Center - Premium Card with Due Reviews */}
         <GlassCard variant="glow" hover className="p-6">
-          <div className="flex items-center justify-between">
+          <div className="flex items-start justify-between gap-6">
             <div className="flex items-center gap-4">
               <div className="p-4 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/30">
                 <Calendar className="w-8 h-8 text-primary" />
@@ -215,7 +220,7 @@ export default function Dashboard() {
               <div>
                 <h3 className="text-xl font-bold mb-1">Review Center</h3>
                 <p className="text-muted-foreground">
-                  Intelligent spaced repetition for long-term retention
+                  {dueReviews?.reviews?.length ?? 0} reviews due · Spaced repetition for long-term retention
                 </p>
               </div>
             </div>
@@ -225,6 +230,26 @@ export default function Dashboard() {
               </Button>
             </Link>
           </div>
+          {dueReviews?.reviews && dueReviews.reviews.length > 0 && (
+            <div className="mt-4 pt-4 border-t border-border">
+              <p className="text-xs text-muted-foreground mb-3">Upcoming reviews:</p>
+              <div className="flex flex-wrap gap-2">
+                {dueReviews.reviews.slice(0, 4).map((review) => (
+                  <span
+                    key={review.lessonSlug}
+                    className="px-3 py-1.5 rounded-lg text-xs font-medium bg-primary/10 text-primary border border-primary/20"
+                  >
+                    {review.lessonTitle}
+                  </span>
+                ))}
+                {dueReviews.reviews.length > 4 && (
+                  <span className="px-3 py-1.5 rounded-lg text-xs font-medium bg-muted/50 text-muted-foreground">
+                    +{dueReviews.reviews.length - 4} more
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
         </GlassCard>
 
         {/* Overall Progress */}
