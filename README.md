@@ -115,12 +115,9 @@ Edit `server/.env` with your MongoDB URI and JWT secret.
 npm run seed
 ```
 
-This loads **36 lessons** (beginner, intermediate, advanced, projects), **6 projects**, **3 challenges**, and an admin user:
+This loads **36 lessons** (beginner, intermediate, advanced, projects), **6 projects**, **3 challenges**, and creates an admin account.
 
-- Email: `admin@pythonedition.com`
-- Password: `admin123`
-
-### 4. Run the app
+### 4. Run the app (Local Development Only)
 
 ```bash
 npm run dev
@@ -128,6 +125,8 @@ npm run dev
 
 - Frontend: http://localhost:3000
 - API: http://localhost:5000
+
+**Note:** Local development requires MongoDB and Python 3 installed. For the live demo, use the links at the top of this README.
 
 ## 🌐 Deployment
 
